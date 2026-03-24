@@ -1,0 +1,3 @@
+# jpa-plus-logic-delete FieldHandler + DataInterceptor 实现
+com.atomize.jpaplus.logicdelete.handler.LogicDeleteFieldHandler
+

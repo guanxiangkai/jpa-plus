@@ -1,0 +1,3 @@
+# jpa-plus-audit DataInterceptor 实现
+com.atomize.jpaplus.audit.interceptor.AuditInterceptor
+

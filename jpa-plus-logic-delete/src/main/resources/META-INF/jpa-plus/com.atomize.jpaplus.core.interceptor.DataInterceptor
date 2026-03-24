@@ -1,0 +1,3 @@
+# jpa-plus-logic-delete DataInterceptor 实现
+com.atomize.jpaplus.logicdelete.interceptor.LogicDeleteInterceptor
+

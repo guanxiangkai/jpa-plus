@@ -1,0 +1,3 @@
+# jpa-plus-query built-in JpaRelationResolver implementations
+com.atomize.jpaplus.query.resolver.DefaultJpaRelationResolver
+
