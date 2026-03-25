@@ -1,0 +1,38 @@
+package com.atomize.jpa.plus.query.context;
+
+import com.atomize.jpa.plus.query.metadata.JoinGraph;
+import com.atomize.jpa.plus.query.metadata.TableMeta;
+import com.atomize.jpa.plus.query.wrapper.SelectColumn;
+
+import java.util.List;
+
+/**
+ * 查询元数据（不可变）
+ *
+ * @param root        根表
+ * @param joinGraph   连接图
+ * @param selects     SELECT 列
+ * @param type        查询类型
+ * @param assignments UPDATE 赋值列表
+ */
+public record QueryMetadata(
+        TableMeta root,
+        JoinGraph joinGraph,
+        List<SelectColumn> selects,
+        QueryType type,
+        List<Assignment> assignments
+) {
+
+    public static QueryMetadata select(TableMeta root) {
+        return new QueryMetadata(root, new JoinGraph(root), List.of(), QueryType.SELECT, List.of());
+    }
+
+    public static QueryMetadata update(TableMeta root, List<Assignment> assignments) {
+        return new QueryMetadata(root, new JoinGraph(root), List.of(), QueryType.UPDATE, assignments);
+    }
+
+    public static QueryMetadata delete(TableMeta root) {
+        return new QueryMetadata(root, new JoinGraph(root), List.of(), QueryType.DELETE, List.of());
+    }
+}
+

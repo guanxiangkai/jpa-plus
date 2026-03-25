@@ -18,7 +18,7 @@
 ### 核心理念
 
 - **只增强不改变** — 继承 `JpaRepository` 的所有能力，额外扩展 Lambda DSL 查询、字段加密、脱敏、审计等能力
-- **模块化按需引入** — 15 个功能模块独立成 JAR，按需组合，不引入不生效
+- **模块化按需引入** — 8 个功能模块独立成 JAR，按需组合，不引入不生效
 - **零侵入注解驱动** — 通过 `@Encrypt`、`@Desensitize`、`@LogicDelete` 等注解声明式启用，无需修改业务代码
 - **现代 Java 技术栈** — 充分利用 JDK 25 的 `ScopedValue`、虚拟线程、`record`、`sealed class`、模式匹配等新特性
 
@@ -49,17 +49,12 @@
 jpa-plus
 ├── jpa-plus-core           # 核心引擎 — 拦截器链、字段引擎、SPI 加载器、统一异常
 ├── jpa-plus-query          # 查询 DSL — Lambda Wrapper、AST 条件树、SQL 编译器
-├── jpa-plus-encrypt        # 字段加密 — @Encrypt + AES 加解密
-├── jpa-plus-desensitize    # 数据脱敏 — @Desensitize + 多策略掩码
-├── jpa-plus-sensitive-word # 敏感词检测 — @SensitiveWord + SPI 扩展
-├── jpa-plus-dict           # 字典回写 — @Dict + DictProvider SPI
-├── jpa-plus-version        # 乐观锁 — @Version + 版本自增
-├── jpa-plus-logic-delete   # 逻辑删除 — @LogicDelete + 查询条件注入
-├── jpa-plus-tenant         # 多租户 — TenantInterceptor + 条件注入
-├── jpa-plus-permission     # 数据权限 — PermissionInterceptor + 条件注入
+├── jpa-plus-field          # 字段治理 — @Encrypt 加密 / @Desensitize 脱敏 / @SensitiveWord 敏感词
+│                           #           @Dict 字典回写 / @Version 乐观锁
+├── jpa-plus-interceptor    # 数据拦截 — @LogicDelete 逻辑删除 / @AutoOrderBy 自动排序
+│                           #           PermissionInterceptor 数据权限 / TenantInterceptor 多租户
 ├── jpa-plus-audit          # 审计日志 — AuditInterceptor + Spring Event
 ├── jpa-plus-datasource     # 多数据源 — @DS + ScopedValue 上下文
-├── jpa-plus-order-by       # 自动排序 — @AutoOrderBy + 默认 ORDER BY 注入
 ├── jpa-plus-starter        # Spring Boot Starter — 自动装配 + JpaPlusRepository
 └── jpa-plus-all            # 全功能聚合包（一次引入所有模块）
 ```
@@ -117,7 +112,8 @@ dependencies {
     // 方式二：按需引入（仅引入需要的模块）
     implementation("com.atomize:jpa-plus-core:2026.0.0")
     implementation("com.atomize:jpa-plus-query:2026.0.0")
-    implementation("com.atomize:jpa-plus-encrypt:2026.0.0")
+    implementation("com.atomize:jpa-plus-field:2026.0.0")        // 字段治理（加密/脱敏/字典/敏感词/乐观锁）
+    implementation("com.atomize:jpa-plus-interceptor:2026.0.0")  // 数据拦截（逻辑删除/排序/权限/租户）
     // ... 其他模块按需添加
 
     // 方式三：全量引入（不含 Spring Boot 自动装配）

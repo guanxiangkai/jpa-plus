@@ -13,18 +13,13 @@ dependencies {
     api(project(":jpa-plus-core"))
     api(project(":jpa-plus-query"))
 
-    // ═══════════ 治理模块（按需引入，此处全部聚合） ═══════════
-    api(project(":jpa-plus-encrypt"))
-    api(project(":jpa-plus-desensitize"))
-    api(project(":jpa-plus-sensitive-word"))
-    api(project(":jpa-plus-dict"))
-    api(project(":jpa-plus-version"))
-    api(project(":jpa-plus-logic-delete"))
-    api(project(":jpa-plus-permission"))
-    api(project(":jpa-plus-tenant"))
-    api(project(":jpa-plus-audit"))
-    api(project(":jpa-plus-datasource"))
-    api(project(":jpa-plus-order-by"))
+    // ═══════════ 治理模块（合并后） ═══════════
+    api(project(":jpa-plus-field"))          // 字段治理：加密/脱敏/字典/敏感词/乐观锁
+    api(project(":jpa-plus-interceptor"))    // 数据拦截：逻辑删除/自动排序/数据权限/多租户
+
+    // ═══════════ 独立治理模块 ═══════════
+    api(project(":jpa-plus-audit"))          // 审计日志（依赖 spring-context）
+    api(project(":jpa-plus-datasource"))     // 多数据源路由（ScopedValue）
 
     // ═══════════ Spring Boot ═══════════
     api(libs.spring.boot.starter.data.jpa)

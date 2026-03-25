@@ -7,16 +7,9 @@
 dependencies {
     api(project(":jpa-plus-core"))
     api(project(":jpa-plus-query"))
-    api(project(":jpa-plus-encrypt"))
-    api(project(":jpa-plus-desensitize"))
-    api(project(":jpa-plus-sensitive-word"))
-    api(project(":jpa-plus-dict"))
-    api(project(":jpa-plus-version"))
-    api(project(":jpa-plus-logic-delete"))
-    api(project(":jpa-plus-permission"))
-    api(project(":jpa-plus-tenant"))
+    api(project(":jpa-plus-field"))          // 字段治理：加密/脱敏/字典/敏感词/乐观锁
+    api(project(":jpa-plus-interceptor"))    // 数据拦截：逻辑删除/自动排序/数据权限/多租户
     api(project(":jpa-plus-audit"))
     api(project(":jpa-plus-datasource"))
-    api(project(":jpa-plus-order-by"))
 }
 
