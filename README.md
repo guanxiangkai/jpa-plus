@@ -5,7 +5,7 @@
     <img src="https://img.shields.io/badge/JDK-25-blue" alt="JDK 25"/>
     <img src="https://img.shields.io/badge/Spring%20Boot-4.1-green" alt="Spring Boot 4.1"/>
     <img src="https://img.shields.io/badge/License-Apache%202.0-orange" alt="License"/>
-    <img src="https://img.shields.io/badge/Version-1.0.0-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/Version-2026.0.0-brightgreen" alt="Version"/>
   </p>
 </p>
 
@@ -144,16 +144,16 @@ jpa-plus
 // build.gradle.kts
 
 // 方式一：引入 Starter（推荐，包含所有模块 + 自动装配）
-implementation("com.atomize:jpa-plus-starter:1.0.0")
+implementation("com.atomize:jpa-plus-starter:2026.0.0")
 
 // 方式二：按需引入（仅引入需要的模块）
-implementation("com.atomize:jpa-plus-core:1.0.0")
-implementation("com.atomize:jpa-plus-query:1.0.0")
-implementation("com.atomize:jpa-plus-encrypt:1.0.0")
+implementation("com.atomize:jpa-plus-core:2026.0.0")
+implementation("com.atomize:jpa-plus-query:2026.0.0")
+implementation("com.atomize:jpa-plus-encrypt:2026.0.0")
 // ... 其他模块按需添加
 
 // 方式三：全量引入（不含 Spring Boot 自动装配）
-implementation("com.atomize:jpa-plus-all:1.0.0")
+implementation("com.atomize:jpa-plus-all:2026.0.0")
 ```
 
 ### 2. 定义实体
@@ -656,7 +656,7 @@ private Integer version;                   // 支持 Integer / Long
 
 ```bash
 # 克隆项目
-git clone https://github.com/atomize/jpa-plus.git
+git clone https://github.com/guanxiangkai/jpa-plus.git
 cd jpa-plus
 
 # 编译（需要 JDK 25+）
@@ -681,12 +681,88 @@ cd jpa-plus
 
 ---
 
+## 📦 发布到 GitHub Packages
+
+所有子模块均可发布到 [GitHub Packages](https://github.com/guanxiangkai/jpa-plus/packages)，每个模块发布 3 个构件：
+
+- `xxx.jar` — 主包
+- `xxx-sources.jar` — 源码包
+- `xxx-javadoc.jar` — 文档包
+
+### 方式一：GitHub Actions 自动发布（推荐）
+
+推送 `v*` 格式的 Tag 时自动触发发布：
+
+```bash
+git tag v2026.0.0
+git push origin v2026.0.0
+```
+
+也可在 GitHub 仓库的 **Actions** 页面手动触发 `Publish to GitHub Packages` 工作流。
+
+> GitHub Actions 使用内置的 `GITHUB_TOKEN`，无需额外配置密钥。
+
+### 方式二：本地手动发布
+
+**第 1 步**：创建 GitHub Personal Access Token
+
+前往 [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+，创建一个具有 **`write:packages`** 权限的 Token。
+
+**第 2 步**：配置凭证
+
+在 **全局** `~/.gradle/gradle.properties` 中添加（此文件不在项目中，不会被 Git 提交）：
+
+```properties
+gpr.user=你的GitHub用户名
+gpr.key=ghp_你的PersonalAccessToken
+```
+
+**第 3 步**：执行发布
+
+```bash
+# 发布所有子模块
+./gradlew publish
+
+# 发布单个模块
+./gradlew :jpa-plus-core:publish
+
+# 先发布到本地 Maven 仓库验证
+./gradlew publishToMavenLocal
+```
+
+### 消费方使用
+
+其他项目引用 GitHub Packages 中的依赖：
+
+```kotlin
+// settings.gradle.kts 或 build.gradle.kts
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/guanxiangkai/jpa-plus")
+        credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+dependencies {
+    implementation("com.atomize:jpa-plus-starter:2026.0.0")
+}
+```
+
+> ⚠️ GitHub Packages **读取也需要认证**（即使仓库是 public 的），消费方同样需要配置 Token（`read:packages` 权限即可）。
+
+---
+
 ## 📋 版本信息
 
 | 属性       | 值             |
 |----------|---------------|
 | Group    | `com.atomize` |
-| Version  | `1.0.0`       |
+| Version  | `2026.0.0`    |
 | JDK      | `25`          |
 | Encoding | `UTF-8`       |
 
@@ -723,6 +799,6 @@ You may obtain a copy of the License at
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/atomize">atomize</a>
+  Made with ❤️ by <a href="https://github.com/guanxiangkai">guanxiangkai</a>
 </p>
 

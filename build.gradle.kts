@@ -37,10 +37,80 @@ val springBootDependencies: Provider<MinimalExternalModuleDependency> = libs.spr
 val slf4jApi: Provider<MinimalExternalModuleDependency> = libs.slf4j.api
 val testingBundle: Provider<ExternalModuleDependencyBundle> = libs.bundles.testing
 
+// ── GitHub Packages 发布凭证（优先读取 gradle.properties，其次读取环境变量） ──
+val gprUser: String = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR") ?: ""
+val gprKey: String = findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN") ?: ""
+
 subprojects {
     apply {
         plugin("java-library")
+        plugin("maven-publish")
         plugin(lombokPlugin.get().pluginId)
+    }
+
+    // ─────────── 生成源码包 & Javadoc 包 ───────────
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    // ─────────── Javadoc 编译选项（避免 preview 特性导致报错） ───────────
+    tasks.withType<Javadoc>().configureEach {
+        options {
+            this as StandardJavadocDocletOptions
+            encoding = "UTF-8"
+            addBooleanOption("-enable-preview", true)
+            addStringOption("source", "25")
+            // 允许 Javadoc 警告但不中断构建
+            addBooleanOption("Xdoclint:none", true)
+        }
+        isFailOnError = false
+    }
+
+    // ─────────── Maven 发布配置 ───────────
+    configure<PublishingExtension> {
+        publications {
+            create<MavenPublication>("gpr") {
+                from(components["java"])
+
+                pom {
+                    name.set(project.name)
+                    description.set("JPA Plus - 企业级 JPA 增强框架 :: ${project.name}")
+                    url.set("https://github.com/guanxiangkai/jpa-plus")
+
+                    licenses {
+                        license {
+                            name.set("Apache License 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id.set("guanxiangkai")
+                            name.set("guanxiangkai")
+                        }
+                    }
+
+                    scm {
+                        url.set("https://github.com/guanxiangkai/jpa-plus")
+                        connection.set("scm:git:git://github.com/guanxiangkai/jpa-plus.git")
+                        developerConnection.set("scm:git:ssh://github.com/guanxiangkai/jpa-plus.git")
+                    }
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/guanxiangkai/jpa-plus")
+                credentials {
+                    username = gprUser
+                    password = gprKey
+                }
+            }
+        }
     }
 
     dependencies {
