@@ -3,7 +3,7 @@ package com.atomize.jpaplus.query.ast;
 import com.atomize.jpaplus.query.metadata.ColumnMeta;
 
 /**
- * 小于条件：column < value
+ * 小于条件：{@code column < value}
  */
 public record Lt(ColumnMeta column, Object value) implements Condition {
     @Override

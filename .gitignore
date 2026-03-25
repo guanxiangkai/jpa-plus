@@ -182,3 +182,5 @@ buildNumber.properties
 *.zip
 
 /ai-ui/
+
+GUIDE.md
