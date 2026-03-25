@@ -69,7 +69,7 @@ public class LogicDeleteInterceptor implements DataInterceptor {
                         ColumnMeta.of(ctx.metadata().root(), meta.columnName(), meta.fieldType()),
                         meta.notDeletedValue()
                 );
-                Condition combined = Conditions.and(ctx.runtime().getWhere(), logicDeleteCondition);
+                Condition combined = Conditions.and(ctx.runtime().where(), logicDeleteCondition);
                 QueryRuntime newRuntime = ctx.runtime().withWhere(combined);
                 invocation = invocation.withQueryModel(ctx.withRuntime(newRuntime));
             }

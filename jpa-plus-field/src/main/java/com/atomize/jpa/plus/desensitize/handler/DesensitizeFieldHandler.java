@@ -58,24 +58,9 @@ public class DesensitizeFieldHandler implements FieldHandler {
     private MaskStrategy resolveStrategy(Desensitize annotation) {
         Class<? extends MaskStrategy> customClass = annotation.customStrategy();
         if (customClass != MaskStrategy.class) {
-            return strategyCache.computeIfAbsent(customClass, this::instantiate);
+            return strategyCache.computeIfAbsent(customClass, ReflectionUtils::instantiate);
         }
         // 内置枚举本身就是 MaskStrategy
         return annotation.strategy();
-    }
-
-    /**
-     * 反射实例化自定义策略（枚举取第一个常量，普通类调无参构造）
-     */
-    private MaskStrategy instantiate(Class<? extends MaskStrategy> clazz) {
-        try {
-            if (clazz.isEnum()) {
-                MaskStrategy[] constants = clazz.getEnumConstants();
-                if (constants.length > 0) return constants[0];
-            }
-            return clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot instantiate MaskStrategy: " + clazz.getName(), e);
-        }
     }
 }

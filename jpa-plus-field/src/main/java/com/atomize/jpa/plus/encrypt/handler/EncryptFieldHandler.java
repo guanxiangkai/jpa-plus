@@ -1,11 +1,11 @@
 package com.atomize.jpa.plus.encrypt.handler;
 
+import com.atomize.jpa.plus.core.exception.JpaPlusException;
 import com.atomize.jpa.plus.core.field.FieldHandler;
 import com.atomize.jpa.plus.core.util.ReflectionUtils;
 import com.atomize.jpa.plus.encrypt.annotation.Encrypt;
 import com.atomize.jpa.plus.encrypt.enums.Algorithm;
 import com.atomize.jpa.plus.encrypt.spi.EncryptKeyProvider;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -32,7 +32,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author guanxiangkai
  * @since 2026年03月25日 星期三
  */
-@Slf4j
 public class EncryptFieldHandler implements FieldHandler {
 
     private final EncryptKeyProvider keyProvider;
@@ -66,7 +65,7 @@ public class EncryptFieldHandler implements FieldHandler {
                 ReflectionUtils.setFieldValue(entity, field, encrypted);
             }
         } catch (Exception e) {
-            log.error("字段加密失败: field={}", field.getName(), e);
+            throw new JpaPlusException("字段加密失败: field=" + field.getName(), e);
         }
     }
 
@@ -80,7 +79,7 @@ public class EncryptFieldHandler implements FieldHandler {
                 ReflectionUtils.setFieldValue(entity, field, decrypted);
             }
         } catch (Exception e) {
-            log.error("字段解密失败: field={}", field.getName(), e);
+            throw new JpaPlusException("字段解密失败: field=" + field.getName(), e);
         }
     }
 
@@ -90,22 +89,11 @@ public class EncryptFieldHandler implements FieldHandler {
     private Algorithm resolveAlgorithm(Encrypt annotation) {
         Class<? extends Algorithm> customClass = annotation.customAlgorithm();
         if (customClass != Algorithm.class) {
-            return algorithmCache.computeIfAbsent(customClass, this::instantiate);
+            return algorithmCache.computeIfAbsent(customClass, ReflectionUtils::instantiate);
         }
         return annotation.algorithm();
     }
 
-    private Algorithm instantiate(Class<? extends Algorithm> clazz) {
-        try {
-            if (clazz.isEnum()) {
-                Algorithm[] constants = clazz.getEnumConstants();
-                if (constants.length > 0) return constants[0];
-            }
-            return clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot instantiate Algorithm: " + clazz.getName(), e);
-        }
-    }
 
     private String doEncrypt(String plainText, Algorithm algo) throws Exception {
         String key = keyProvider.getKey();

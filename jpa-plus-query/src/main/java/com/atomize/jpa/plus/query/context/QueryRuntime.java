@@ -60,27 +60,5 @@ public record QueryRuntime(
     public QueryRuntime withLimit(Integer offset, Integer rows) {
         return new QueryRuntime(where, orderBys, parameters, offset, rows);
     }
-
-    // ─── 向后兼容的 getter 别名（record 默认方法名为 where() 等，保留 getXxx 以兼容已有调用） ───
-
-    public Condition getWhere() {
-        return where;
-    }
-
-    public List<OrderBy> getOrderBys() {
-        return orderBys;
-    }
-
-    public Map<String, Object> getParameters() {
-        return parameters;
-    }
-
-    public Integer getOffset() {
-        return offset;
-    }
-
-    public Integer getRows() {
-        return rows;
-    }
 }
 

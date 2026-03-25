@@ -66,20 +66,8 @@ public class SensitiveWordHandler implements FieldHandler {
     private SensitiveStrategy resolveStrategy(SensitiveWord annotation) {
         Class<? extends SensitiveStrategy> customClass = annotation.customStrategy();
         if (customClass != SensitiveStrategy.class) {
-            return strategyCache.computeIfAbsent(customClass, this::instantiate);
+            return strategyCache.computeIfAbsent(customClass, ReflectionUtils::instantiate);
         }
         return annotation.strategy();
-    }
-
-    private SensitiveStrategy instantiate(Class<? extends SensitiveStrategy> clazz) {
-        try {
-            if (clazz.isEnum()) {
-                SensitiveStrategy[] constants = clazz.getEnumConstants();
-                if (constants.length > 0) return constants[0];
-            }
-            return clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot instantiate SensitiveStrategy: " + clazz.getName(), e);
-        }
     }
 }

@@ -23,6 +23,7 @@ package com.atomize.jpa.plus.encrypt.spi;
  * @author guanxiangkai
  * @since 2026年03月25日 星期二
  */
+@FunctionalInterface
 public interface EncryptKeyProvider {
 
     /**

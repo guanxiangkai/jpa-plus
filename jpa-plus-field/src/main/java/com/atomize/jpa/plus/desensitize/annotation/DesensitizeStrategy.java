@@ -99,7 +99,7 @@ public enum DesensitizeStrategy implements MaskStrategy {
      * 生成重复字符的字符串
      */
     private static String repeat(char c, int count) {
-        return String.valueOf(c).repeat(count);
+        return Character.toString(c).repeat(Math.max(0, count));
     }
 
     /**

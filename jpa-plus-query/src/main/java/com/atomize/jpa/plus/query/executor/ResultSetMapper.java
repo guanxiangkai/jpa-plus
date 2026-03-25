@@ -8,6 +8,7 @@ import java.sql.SQLException;
  *
  * @param <R> 映射目标类型
  */
+@FunctionalInterface
 public interface ResultSetMapper<R> {
 
     /**

@@ -87,5 +87,32 @@ public final class ReflectionUtils {
             throw new IllegalStateException("Cannot set field: " + field.getName(), e);
         }
     }
+
+    /**
+     * 通用反射实例化工具（枚举取第一个常量，普通类调无参构造）
+     *
+     * <p>消除各模块中重复的 {@code instantiate()} 私有方法。</p>
+     *
+     * @param clazz 目标类型
+     * @param <T>   目标泛型
+     * @return 实例化结果
+     * @throws IllegalStateException 实例化失败时抛出
+     */
+    public static <T> T instantiate(Class<T> clazz) {
+        try {
+            if (clazz.isEnum()) {
+                T[] constants = clazz.getEnumConstants();
+                if (constants != null && constants.length > 0) {
+                    return constants[0];
+                }
+                throw new IllegalStateException("Enum " + clazz.getName() + " has no constants");
+            }
+            return clazz.getDeclaredConstructor().newInstance();
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot instantiate: " + clazz.getName(), e);
+        }
+    }
 }
 

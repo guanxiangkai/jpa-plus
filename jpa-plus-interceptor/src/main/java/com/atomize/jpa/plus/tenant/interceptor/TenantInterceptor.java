@@ -51,7 +51,7 @@ public class TenantInterceptor implements DataInterceptor {
                         ColumnMeta.of(ctx.metadata().root(), "tenant_id", String.class),
                         tenantId
                 );
-                Condition combined = Conditions.and(ctx.runtime().getWhere(), tenantCondition);
+                Condition combined = Conditions.and(ctx.runtime().where(), tenantCondition);
                 QueryRuntime newRuntime = ctx.runtime().withWhere(combined);
                 invocation = invocation.withQueryModel(ctx.withRuntime(newRuntime));
             }

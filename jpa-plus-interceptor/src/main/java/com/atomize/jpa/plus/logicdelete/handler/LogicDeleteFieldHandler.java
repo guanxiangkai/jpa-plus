@@ -44,7 +44,7 @@ public class LogicDeleteFieldHandler implements FieldHandler {
     public static Object resolveNotDeletedValue(Class<?> fieldType, LogicDelete annotation) {
         // customType 优先
         if (annotation.customType() != LogicDeleteValue.class) {
-            return instantiate(annotation.customType()).notDeletedValue();
+            return ReflectionUtils.instantiate(annotation.customType()).notDeletedValue();
         }
         // 按字段类型自动推导
         return resolveByFieldType(fieldType, annotation.defaultValue());
@@ -55,7 +55,7 @@ public class LogicDeleteFieldHandler implements FieldHandler {
      */
     public static Object resolveDeletedValue(Class<?> fieldType, LogicDelete annotation) {
         if (annotation.customType() != LogicDeleteValue.class) {
-            return instantiate(annotation.customType()).deletedValue();
+            return ReflectionUtils.instantiate(annotation.customType()).deletedValue();
         }
         return resolveByFieldType(fieldType, annotation.value());
     }
@@ -73,18 +73,6 @@ public class LogicDeleteFieldHandler implements FieldHandler {
             case "byte", "java.lang.Byte" -> Byte.parseByte(annotationValue);
             default -> annotationValue; // String 及其他类型直接使用注解值
         };
-    }
-
-    private static LogicDeleteValue instantiate(Class<? extends LogicDeleteValue> clazz) {
-        try {
-            if (clazz.isEnum()) {
-                LogicDeleteValue[] constants = clazz.getEnumConstants();
-                if (constants.length > 0) return constants[0];
-            }
-            return clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot instantiate LogicDeleteValue: " + clazz.getName(), e);
-        }
     }
 
     @Override

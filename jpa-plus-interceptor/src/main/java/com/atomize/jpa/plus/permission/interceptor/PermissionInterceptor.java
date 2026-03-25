@@ -5,6 +5,7 @@ import com.atomize.jpa.plus.core.interceptor.DataInterceptor;
 import com.atomize.jpa.plus.core.interceptor.Phase;
 import com.atomize.jpa.plus.core.model.DataInvocation;
 import com.atomize.jpa.plus.core.model.OperationType;
+import com.atomize.jpa.plus.core.util.ReflectionUtils;
 import com.atomize.jpa.plus.permission.annotation.DataScope;
 import com.atomize.jpa.plus.permission.enums.DataScopeEnum;
 import com.atomize.jpa.plus.permission.enums.DataScopeType;
@@ -75,7 +76,7 @@ public class PermissionInterceptor implements DataInterceptor {
                 if (!scopeEnum.skipFilter()) {
                     Condition permission = buildCondition(scope, scopeEnum, ctx);
                     if (permission != null) {
-                        Condition combined = Conditions.and(ctx.runtime().getWhere(), permission);
+                        Condition combined = Conditions.and(ctx.runtime().where(), permission);
                         QueryRuntime newRuntime = ctx.runtime().withWhere(combined);
                         invocation = invocation.withQueryModel(ctx.withRuntime(newRuntime));
 
@@ -106,7 +107,7 @@ public class PermissionInterceptor implements DataInterceptor {
     private DataScopeEnum resolveScopeEnum(DataScope scope) {
         Class<? extends DataScopeEnum> customClass = scope.customType();
         if (customClass != DataScopeEnum.class) {
-            return enumCache.computeIfAbsent(customClass, this::instantiate);
+            return enumCache.computeIfAbsent(customClass, ReflectionUtils::instantiate);
         }
         return scope.type();
     }
@@ -147,17 +148,5 @@ public class PermissionInterceptor implements DataInterceptor {
 
         // 自定义类型：统一走 handler.customCondition()
         return handler.customCondition(ctx.metadata().root().entityClass());
-    }
-
-    private DataScopeEnum instantiate(Class<? extends DataScopeEnum> clazz) {
-        try {
-            if (clazz.isEnum()) {
-                DataScopeEnum[] constants = clazz.getEnumConstants();
-                if (constants.length > 0) return constants[0];
-            }
-            return clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot instantiate DataScopeEnum: " + clazz.getName(), e);
-        }
     }
 }

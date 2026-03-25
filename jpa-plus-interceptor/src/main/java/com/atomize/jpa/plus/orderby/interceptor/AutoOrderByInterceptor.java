@@ -71,7 +71,7 @@ public class AutoOrderByInterceptor implements DataInterceptor {
     public Object intercept(DataInvocation invocation, Chain chain) throws Throwable {
         if (invocation.queryModel() instanceof QueryContext ctx) {
             // 若已有显式排序，跳过
-            if (!ctx.runtime().getOrderBys().isEmpty()) {
+            if (!ctx.runtime().orderBys().isEmpty()) {
                 return chain.proceed(invocation);
             }
 

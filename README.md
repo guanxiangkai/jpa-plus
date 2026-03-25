@@ -47,14 +47,14 @@
 
 ```
 jpa-plus
-├── jpa-plus-core           # 核心引擎 — 拦截器链、字段引擎、SPI 加载器、统一异常
-├── jpa-plus-query          # 查询 DSL — Lambda Wrapper、AST 条件树、SQL 编译器
+├── jpa-plus-core           # 核心引擎 — 拦截器链、字段引擎、SPI 加载器、统一异常、反射工具
+├── jpa-plus-query          # 查询 DSL — Lambda Wrapper、AST 条件树、SQL 编译器（ScopedValue 参数命名）
 ├── jpa-plus-field          # 字段治理 — @Encrypt 加密 / @Desensitize 脱敏 / @SensitiveWord 敏感词
 │                           #           @Dict 字典回写 / @Version 乐观锁
 ├── jpa-plus-interceptor    # 数据拦截 — @LogicDelete 逻辑删除 / @AutoOrderBy 自动排序
 │                           #           PermissionInterceptor 数据权限 / TenantInterceptor 多租户
 ├── jpa-plus-audit          # 审计日志 — AuditInterceptor + Spring Event
-├── jpa-plus-datasource     # 多数据源 — @DS + ScopedValue 上下文
+├── jpa-plus-datasource     # 多数据源 — @DS + ScopedValue 上下文 + @EventListener 配置刷新
 ├── jpa-plus-starter        # Spring Boot Starter — 自动装配 + JpaPlusRepository
 └── jpa-plus-all            # 全功能聚合包（一次引入所有模块）
 ```
@@ -123,6 +123,30 @@ dependencies {
 
 ---
 
+## 🆕 2026.0.0 版本优化
+
+### 设计模式与代码质量
+
+- **提取通用实例化工具** — `ReflectionUtils.instantiate()` 消除 5 个模块中重复的 `instantiate()` 私有方法
+- **`@FunctionalInterface` 标注** — `EncryptKeyProvider`、`MaskStrategy`、`DataSourceCreator`、`SqlCompiler`、
+  `ResultSetMapper` 等单方法接口均标注，支持 Lambda 表达式传参
+- **异常处理改进** — `EncryptFieldHandler` 加解密失败时抛出 `JpaPlusException` 而非静默吞异常，避免数据静默损坏
+- **NamingUtils 性能优化** — `camelToSnake()` 预分配 StringBuilder 容量，添加空值安全检查
+
+### JDK 25 新特性采用
+
+- **`ScopedValue` 全面替代 `ThreadLocal`** — `ParameterNamingStrategy` 从 `ThreadLocal<AtomicInteger>` 迁移到
+  `ScopedValue`，配合 `runWhere()` 块作用域 API，虚拟线程友好且无需手动清理
+- **`record` 访问器规范化** — `QueryRuntime` 移除冗余的 `getXxx()` 别名方法，全面使用 record 标准访问器 `where()`、
+  `orderBys()`、`offset()`、`rows()` 等
+
+### Spring Boot 4.1 最佳实践
+
+- **`@EventListener` 替代 `ApplicationListener`** — `DataSourceRefreshListener` 使用声明式事件监听，更简洁且符合 Spring
+  Boot 4 惯用方式
+
+---
+
 ## 📋 版本信息
 
 | 属性       | 值             |
@@ -143,6 +167,9 @@ dependencies {
 - [ ] 字典模块本地缓存支持（Caffeine L1 + Redis L2 SPI）
 - [ ] 敏感词模块内置 DFA 引擎实现
 - [x] ~~自动排序 `@AutoOrderBy` 注解支持~~
+- [x] ~~`ScopedValue` 全面替代 `ThreadLocal`~~
+- [x] ~~通用反射实例化工具 `ReflectionUtils.instantiate()`~~
+- [x] ~~SPI 接口 `@FunctionalInterface` 标注~~
 - [ ] 完善单元测试与集成测试覆盖
 - [ ] 发布到 Maven Central
 

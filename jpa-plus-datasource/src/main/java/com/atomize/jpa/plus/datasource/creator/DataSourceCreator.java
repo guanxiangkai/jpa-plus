@@ -15,6 +15,7 @@ import javax.sql.DataSource;
  * @author guanxiangkai
  * @since 2026年03月25日 星期三
  */
+@FunctionalInterface
 public interface DataSourceCreator {
 
     /**

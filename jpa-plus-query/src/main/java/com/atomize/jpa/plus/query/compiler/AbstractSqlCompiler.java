@@ -39,58 +39,56 @@ public abstract class AbstractSqlCompiler implements SqlCompiler {
 
     @Override
     public SqlResult compile(QueryContext ctx) {
+        return ParameterNamingStrategy.runWhere(() -> doCompile(ctx));
+    }
+
+    private SqlResult doCompile(QueryContext ctx) {
         // 使用局部变量，保证线程安全
         StringBuilder sql = new StringBuilder();
         Map<String, Object> params = new LinkedHashMap<>();
         ConditionNormalizer normalizer = new ConditionNormalizer();
 
-        try {
-            ParameterNamingStrategy.begin();
+        // 0. 规范化条件
+        Condition normalizedWhere = ctx.runtime().where() != null
+                ? ctx.runtime().where().accept(normalizer)
+                : null;
+        QueryRuntime newRuntime = ctx.runtime().withWhere(normalizedWhere);
+        QueryContext normalizedCtx = ctx.withRuntime(newRuntime);
 
-            // 0. 规范化条件
-            Condition normalizedWhere = ctx.runtime().getWhere() != null
-                    ? ctx.runtime().getWhere().accept(normalizer)
-                    : null;
-            QueryRuntime newRuntime = ctx.runtime().withWhere(normalizedWhere);
-            QueryContext normalizedCtx = ctx.withRuntime(newRuntime);
-
-            // 1. 构建语句头部
-            switch (normalizedCtx.type()) {
-                case SELECT -> buildSelect(sql, normalizedCtx);
-                case UPDATE -> buildUpdate(sql, normalizedCtx);
-                case DELETE -> buildDelete(sql, normalizedCtx);
-            }
-
-            // 2. 处理 FROM / JOIN
-            buildFrom(sql, normalizedCtx);
-
-            // 3. 处理 SET（UPDATE）
-            if (normalizedCtx.type() == QueryType.UPDATE) {
-                buildSet(sql, params, normalizedCtx);
-            }
-
-            // 4. 处理 WHERE
-            if (normalizedCtx.runtime().getWhere() != null) {
-                sql.append(" WHERE ");
-                visitCondition(sql, params, normalizedCtx.runtime().getWhere());
-            }
-
-            // 5. 处理 ORDER BY
-            if (!normalizedCtx.runtime().getOrderBys().isEmpty()) {
-                sql.append(" ORDER BY ");
-                String orderClause = normalizedCtx.runtime().getOrderBys().stream()
-                        .map(ob -> ob.column().qualifiedName() + " " + ob.direction().name())
-                        .collect(Collectors.joining(", "));
-                sql.append(orderClause);
-            }
-
-            // 6. 处理 LIMIT（方言差异点 —— 由子类实现）
-            appendLimit(sql, normalizedCtx.runtime().getOffset(), normalizedCtx.runtime().getRows());
-
-            return new SqlResult(sql.toString(), Map.copyOf(params));
-        } finally {
-            ParameterNamingStrategy.end();
+        // 1. 构建语句头部
+        switch (normalizedCtx.type()) {
+            case SELECT -> buildSelect(sql, normalizedCtx);
+            case UPDATE -> buildUpdate(sql, normalizedCtx);
+            case DELETE -> buildDelete(sql, normalizedCtx);
         }
+
+        // 2. 处理 FROM / JOIN
+        buildFrom(sql, normalizedCtx);
+
+        // 3. 处理 SET（UPDATE）
+        if (normalizedCtx.type() == QueryType.UPDATE) {
+            buildSet(sql, params, normalizedCtx);
+        }
+
+        // 4. 处理 WHERE
+        if (normalizedCtx.runtime().where() != null) {
+            sql.append(" WHERE ");
+            visitCondition(sql, params, normalizedCtx.runtime().where());
+        }
+
+        // 5. 处理 ORDER BY
+        if (!normalizedCtx.runtime().orderBys().isEmpty()) {
+            sql.append(" ORDER BY ");
+            String orderClause = normalizedCtx.runtime().orderBys().stream()
+                    .map(ob -> ob.column().qualifiedName() + " " + ob.direction().name())
+                    .collect(Collectors.joining(", "));
+            sql.append(orderClause);
+        }
+
+        // 6. 处理 LIMIT（方言差异点 —— 由子类实现）
+        appendLimit(sql, normalizedCtx.runtime().offset(), normalizedCtx.runtime().rows());
+
+        return new SqlResult(sql.toString(), Map.copyOf(params));
     }
 
     // ─────────── 方言差异扩展点 ───────────

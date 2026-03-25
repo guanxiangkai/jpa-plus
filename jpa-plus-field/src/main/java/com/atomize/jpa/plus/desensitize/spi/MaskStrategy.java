@@ -22,6 +22,7 @@ package com.atomize.jpa.plus.desensitize.spi;
  * @author guanxiangkai
  * @since 2026年03月25日 星期二
  */
+@FunctionalInterface
 public interface MaskStrategy {
 
     /**

@@ -20,7 +20,11 @@ public final class NamingUtils {
      * @return 蛇形命名字符串
      */
     public static String camelToSnake(String camelCase) {
-        StringBuilder result = new StringBuilder();
+        if (camelCase == null || camelCase.isEmpty()) {
+            return camelCase;
+        }
+        // 预分配容量：原长度 + 4（典型场景下下划线数量不超过 4 个）
+        StringBuilder result = new StringBuilder(camelCase.length() + 4);
         for (int i = 0; i < camelCase.length(); i++) {
             char c = camelCase.charAt(i);
             if (Character.isUpperCase(c)) {
@@ -40,9 +44,13 @@ public final class NamingUtils {
      * @return 驼峰命名字符串
      */
     public static String snakeToCamel(String snake) {
-        StringBuilder result = new StringBuilder();
+        if (snake == null || snake.isEmpty()) {
+            return snake;
+        }
+        StringBuilder result = new StringBuilder(snake.length());
         boolean nextUpper = false;
-        for (char c : snake.toCharArray()) {
+        for (int i = 0; i < snake.length(); i++) {
+            char c = snake.charAt(i);
             if (c == '_') {
                 nextUpper = true;
             } else {
