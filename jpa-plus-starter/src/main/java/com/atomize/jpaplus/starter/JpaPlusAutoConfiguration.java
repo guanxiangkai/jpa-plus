@@ -11,6 +11,7 @@ import com.atomize.jpaplus.dict.handler.DictFieldHandler;
 import com.atomize.jpaplus.dict.spi.DictProvider;
 import com.atomize.jpaplus.encrypt.handler.EncryptFieldHandler;
 import com.atomize.jpaplus.logicdelete.handler.LogicDeleteFieldHandler;
+import com.atomize.jpaplus.orderby.interceptor.AutoOrderByInterceptor;
 import com.atomize.jpaplus.query.compiler.DebugSqlCompiler;
 import com.atomize.jpaplus.query.compiler.MySqlCompiler;
 import com.atomize.jpaplus.query.compiler.SqlCompiler;
@@ -121,6 +122,14 @@ public class JpaPlusAutoConfiguration {
     @ConditionalOnMissingBean
     public LogicDeleteFieldHandler logicDeleteFieldHandler() {
         return new LogicDeleteFieldHandler();
+    }
+
+    // ─────────── 拦截器（各治理模块） ───────────
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AutoOrderByInterceptor autoOrderByInterceptor() {
+        return new AutoOrderByInterceptor();
     }
 
     @Bean

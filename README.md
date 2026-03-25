@@ -18,7 +18,7 @@
 ### 核心理念
 
 - **只增强不改变** — 继承 `JpaRepository` 的所有能力，额外扩展 Lambda DSL 查询、字段加密、脱敏、审计等能力
-- **模块化按需引入** — 14 个功能模块独立成 JAR，按需组合，不引入不生效
+- **模块化按需引入** — 15 个功能模块独立成 JAR，按需组合，不引入不生效
 - **零侵入注解驱动** — 通过 `@Encrypt`、`@Desensitize`、`@LogicDelete` 等注解声明式启用，无需修改业务代码
 - **现代 Java 技术栈** — 充分利用 JDK 25 的 `ScopedValue`、虚拟线程、`record`、`sealed class`、模式匹配等新特性
 
@@ -38,6 +38,7 @@
 | **多租户隔离** | 自动注入 `tenant_id` 条件实现数据隔离               | `TenantInterceptor`            |
 | **数据权限**  | 查询前自动注入行级权限条件                           | `PermissionInterceptor`        |
 | **审计日志**  | 操作完成后发布 Spring 事件，支持异步审计                | `AuditEvent`                   |
+| **自动排序**  | 实体字段声明默认排序规则，查询时自动注入 ORDER BY           | `@AutoOrderBy`                 |
 | **多数据源**  | 基于 `ScopedValue` 的线程安全数据源切换             | `@DS` / `JpaPlusContext`       |
 
 ---
@@ -58,6 +59,7 @@ jpa-plus
 ├── jpa-plus-permission     # 数据权限 — PermissionInterceptor + 条件注入
 ├── jpa-plus-audit          # 审计日志 — AuditInterceptor + Spring Event
 ├── jpa-plus-datasource     # 多数据源 — @DS + ScopedValue 上下文
+├── jpa-plus-order-by       # 自动排序 — @AutoOrderBy + 默认 ORDER BY 注入
 ├── jpa-plus-starter        # Spring Boot Starter — 自动装配 + JpaPlusRepository
 └── jpa-plus-all            # 全功能聚合包（一次引入所有模块）
 ```
@@ -144,7 +146,7 @@ dependencies {
 - [ ] 事件总线异步模式（虚拟线程 + 可配置 `ErrorHandler`）
 - [ ] 字典模块本地缓存支持（Caffeine L1 + Redis L2 SPI）
 - [ ] 敏感词模块内置 DFA 引擎实现
-- [ ] 自动排序 `@OrderBy` 注解支持
+- [x] ~~自动排序 `@AutoOrderBy` 注解支持~~
 - [ ] 完善单元测试与集成测试覆盖
 - [ ] 发布到 Maven Central
 

@@ -17,5 +17,6 @@ dependencies {
     api(project(":jpa-plus-tenant"))
     api(project(":jpa-plus-audit"))
     api(project(":jpa-plus-datasource"))
+    api(project(":jpa-plus-order-by"))
 }
 

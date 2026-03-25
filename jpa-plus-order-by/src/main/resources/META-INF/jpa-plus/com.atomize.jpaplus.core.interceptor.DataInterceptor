@@ -1,0 +1,3 @@
+# jpa-plus-order-by DataInterceptor 实现
+com.atomize.jpaplus.orderby.interceptor.AutoOrderByInterceptor
+

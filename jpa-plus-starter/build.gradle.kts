@@ -24,6 +24,7 @@ dependencies {
     api(project(":jpa-plus-tenant"))
     api(project(":jpa-plus-audit"))
     api(project(":jpa-plus-datasource"))
+    api(project(":jpa-plus-order-by"))
 
     // ═══════════ Spring Boot ═══════════
     api(libs.spring.boot.starter.data.jpa)
