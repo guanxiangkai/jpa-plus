@@ -1,5 +1,6 @@
 package com.atomize.jpa.plus.permission.annotation;
 
+import com.atomize.jpa.plus.permission.enums.DataScopeEnum;
 import com.atomize.jpa.plus.permission.enums.DataScopeType;
 
 import java.lang.annotation.*;
@@ -7,39 +8,22 @@ import java.lang.annotation.*;
 /**
  * 数据权限注解
  *
- * <p>标注在实体类或 Repository 方法上，声明该实体/查询的数据权限范围。
- * 框架通过 {@link com.atomize.jpa.plus.permission.interceptor.PermissionInterceptor PermissionInterceptor} 在查询前自动注入对应的 WHERE 条件。</p>
+ * <p>标注在实体类或 Repository 方法上，声明该实体/查询的数据权限范围。</p>
  *
  * <h3>使用示例</h3>
- *
- * <p><b>1. 标注在实体类上（全局生效）：</b></p>
  * <pre>{@code
- * @Entity
+ * // 内置类型
  * @DataScope(type = DataScopeType.DEPT_AND_CHILD)
- * public class Order {
- *     private Long deptId;
- *     private String createBy;
- * }
+ * public class Order { ... }
+ *
+ * // 自定义类型
+ * @DataScope(customType = MyDataScope.REGION.class)
+ * public class RegionOrder { ... }
  * }</pre>
- *
- * <p><b>2. 标注在 Repository 方法上（方法级覆盖）：</b></p>
- * <pre>{@code
- * public interface OrderRepository extends JpaRepository<Order, Long> {
- *
- *     @DataScope(type = DataScopeType.SELF)
- *     List<Order> findByStatus(String status);
- * }
- * }</pre>
- *
- * <p><b>属性说明：</b></p>
- * <ul>
- *   <li>{@link #type()} —— 权限范围类型，默认 {@link DataScopeType#DEPT}</li>
- *   <li>{@link #deptColumn()} —— 部门字段的数据库列名，默认 {@code "dept_id"}</li>
- *   <li>{@link #userColumn()} —— 创建人字段的数据库列名，默认 {@code "create_by"}（{@code SELF} 模式使用）</li>
- * </ul>
  *
  * @author guanxiangkai
  * @see DataScopeType
+ * @see DataScopeEnum
  * @since 2026年03月25日 星期二
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
@@ -48,24 +32,25 @@ import java.lang.annotation.*;
 public @interface DataScope {
 
     /**
-     * 数据权限范围类型（默认本部门）
+     * 内置数据权限范围类型（默认本部门）
      */
     DataScopeType type() default DataScopeType.DEPT;
 
     /**
-     * 部门字段列名（默认 "dept_id"）
+     * 自定义数据权限范围类型（优先于 {@link #type()}）
      *
-     * <p>用于 {@link DataScopeType#DEPT} 和 {@link DataScopeType#DEPT_AND_CHILD} 模式，
-     * 拦截器会追加 {@code dept_id = :deptId} 或 {@code dept_id IN (:deptIds)} 条件。</p>
+     * <p>指定一个实现了 {@link DataScopeEnum} 的枚举或类。
+     * 设为默认值 {@code DataScopeEnum.class} 表示不使用自定义类型。</p>
+     */
+    Class<? extends DataScopeEnum> customType() default DataScopeEnum.class;
+
+    /**
+     * 部门字段列名（默认 "dept_id"）
      */
     String deptColumn() default "dept_id";
 
     /**
      * 创建人字段列名（默认 "create_by"）
-     *
-     * <p>用于 {@link DataScopeType#SELF} 模式，
-     * 拦截器会追加 {@code create_by = :userId} 条件。</p>
      */
     String userColumn() default "create_by";
 }
-

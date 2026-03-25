@@ -6,6 +6,7 @@ import com.atomize.jpa.plus.core.interceptor.Phase;
 import com.atomize.jpa.plus.core.model.DataInvocation;
 import com.atomize.jpa.plus.core.model.OperationType;
 import com.atomize.jpa.plus.permission.annotation.DataScope;
+import com.atomize.jpa.plus.permission.enums.DataScopeEnum;
 import com.atomize.jpa.plus.permission.enums.DataScopeType;
 import com.atomize.jpa.plus.permission.handler.DataScopeHandler;
 import com.atomize.jpa.plus.query.ast.Condition;
@@ -24,31 +25,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
- * 数据权限拦截器
+ * 数据权限拦截���
  *
- * <p>在查询前根据实体类上的 {@link DataScope} 注解和 {@link DataScopeType} 自动注入
- * 行级数据权限条件到 AST，实现多粒度的数据权限控制。</p>
- *
- * <h3>权限范围与生成条件</h3>
- * <table>
- *   <tr><th>DataScopeType</th><th>生成条件</th></tr>
- *   <tr><td>{@link DataScopeType#ALL}</td><td>不追加任何条件</td></tr>
- *   <tr><td>{@link DataScopeType#DEPT}</td><td>{@code dept_id = :currentDeptId}</td></tr>
- *   <tr><td>{@link DataScopeType#DEPT_AND_CHILD}</td><td>{@code dept_id IN (:deptIds)}</td></tr>
- *   <tr><td>{@link DataScopeType#SELF}</td><td>{@code create_by = :currentUserId}</td></tr>
- *   <tr><td>{@link DataScopeType#CUSTOM}</td><td>由 {@link DataScopeHandler#customCondition} 决定</td></tr>
- * </table>
- *
- * <p><b>设计模式：</b>
- * <ul>
- *   <li>模板方法模式（Template Method） —— 定义权限注入流程，具体数据由 Handler 提供</li>
- *   <li>策略模式（Strategy） —— 通过 {@link DataScopeType} 选择不同的条件构建策略</li>
- * </ul>
- * </p>
+ * <p>在查询前根据实体类上的 {@link DataScope} 注解自动注入
+ * 行级数据权限条件到 AST，实现多粒度的数据权限控制。
+ * 支持内置 {@link DataScopeType} 和用户自定义 {@link DataScopeEnum} 实现。</p>
  *
  * @author guanxiangkai
  * @see DataScope
- * @see DataScopeType
+ * @see DataScopeEnum
  * @see DataScopeHandler
  * @since 2026年03月25日 星期二
  */
@@ -57,10 +42,8 @@ public class PermissionInterceptor implements DataInterceptor {
 
     private final DataScopeHandler handler;
 
-    /**
-     * 缓存每个实体类的 @DataScope 注解（避免重复反射扫描）
-     */
     private final Map<Class<?>, DataScope> annotationCache = new ConcurrentHashMap<>();
+    private final Map<Class<? extends DataScopeEnum>, DataScopeEnum> enumCache = new ConcurrentHashMap<>();
 
     public PermissionInterceptor(DataScopeHandler handler) {
         this.handler = Objects.requireNonNull(handler, "DataScopeHandler must not be null");
@@ -87,15 +70,18 @@ public class PermissionInterceptor implements DataInterceptor {
             Class<?> entityClass = ctx.metadata().root().entityClass();
             DataScope scope = resolveDataScope(entityClass);
 
-            if (scope != null && scope.type() != DataScopeType.ALL) {
-                Condition permission = buildCondition(scope, ctx);
-                if (permission != null) {
-                    Condition combined = Conditions.and(ctx.runtime().getWhere(), permission);
-                    QueryRuntime newRuntime = ctx.runtime().withWhere(combined);
-                    invocation = invocation.withQueryModel(ctx.withRuntime(newRuntime));
+            if (scope != null) {
+                DataScopeEnum scopeEnum = resolveScopeEnum(scope);
+                if (!scopeEnum.skipFilter()) {
+                    Condition permission = buildCondition(scope, scopeEnum, ctx);
+                    if (permission != null) {
+                        Condition combined = Conditions.and(ctx.runtime().getWhere(), permission);
+                        QueryRuntime newRuntime = ctx.runtime().withWhere(combined);
+                        invocation = invocation.withQueryModel(ctx.withRuntime(newRuntime));
 
-                    if (log.isDebugEnabled()) {
-                        log.debug("DataScope: entity={}, type={}", entityClass.getSimpleName(), scope.type());
+                        if (log.isDebugEnabled()) {
+                            log.debug("DataScope: entity={}, scope={}", entityClass.getSimpleName(), scopeEnum.scopeName());
+                        }
                     }
                 }
             }
@@ -103,9 +89,6 @@ public class PermissionInterceptor implements DataInterceptor {
         return chain.proceed(invocation);
     }
 
-    /**
-     * 解析实体类上的 {@link DataScope} 注解（带缓存）
-     */
     private DataScope resolveDataScope(Class<?> entityClass) {
         if (annotationCache.containsKey(entityClass)) {
             return annotationCache.get(entityClass);
@@ -118,34 +101,63 @@ public class PermissionInterceptor implements DataInterceptor {
     }
 
     /**
-     * 根据 {@link DataScopeType} 构建对应的权限条件
+     * 解析 DataScopeEnum：customType 优先于 type
      */
-    private Condition buildCondition(DataScope scope, QueryContext ctx) {
-        return switch (scope.type()) {
-            case ALL -> null;
+    private DataScopeEnum resolveScopeEnum(DataScope scope) {
+        Class<? extends DataScopeEnum> customClass = scope.customType();
+        if (customClass != DataScopeEnum.class) {
+            return enumCache.computeIfAbsent(customClass, this::instantiate);
+        }
+        return scope.type();
+    }
 
-            case DEPT -> {
-                Object deptId = handler.getCurrentDeptId();
-                yield deptId != null
-                        ? new Eq(ColumnMeta.of(ctx.metadata().root(), scope.deptColumn(), deptId.getClass()), deptId)
-                        : null;
+    /**
+     * 根据 scope 类型构建对应的权限条件
+     */
+    private Condition buildCondition(DataScope scope, DataScopeEnum scopeEnum, QueryContext ctx) {
+        // 内置类型走 switch 分派
+        if (scopeEnum instanceof DataScopeType builtIn) {
+            return switch (builtIn) {
+                case ALL -> null;
+
+                case DEPT -> {
+                    Object deptId = handler.getCurrentDeptId();
+                    yield deptId != null
+                            ? new Eq(ColumnMeta.of(ctx.metadata().root(), scope.deptColumn(), deptId.getClass()), deptId)
+                            : null;
+                }
+
+                case DEPT_AND_CHILD -> {
+                    Collection<?> deptIds = handler.getDeptAndChildIds();
+                    yield (deptIds != null && !deptIds.isEmpty())
+                            ? new In(ColumnMeta.of(ctx.metadata().root(), scope.deptColumn(), Long.class), deptIds)
+                            : null;
+                }
+
+                case SELF -> {
+                    Object userId = handler.getCurrentUserId();
+                    yield userId != null
+                            ? new Eq(ColumnMeta.of(ctx.metadata().root(), scope.userColumn(), userId.getClass()), userId)
+                            : null;
+                }
+
+                case CUSTOM -> handler.customCondition(ctx.metadata().root().entityClass());
+            };
+        }
+
+        // 自定义类型：统一走 handler.customCondition()
+        return handler.customCondition(ctx.metadata().root().entityClass());
+    }
+
+    private DataScopeEnum instantiate(Class<? extends DataScopeEnum> clazz) {
+        try {
+            if (clazz.isEnum()) {
+                DataScopeEnum[] constants = clazz.getEnumConstants();
+                if (constants.length > 0) return constants[0];
             }
-
-            case DEPT_AND_CHILD -> {
-                Collection<?> deptIds = handler.getDeptAndChildIds();
-                yield (deptIds != null && !deptIds.isEmpty())
-                        ? new In(ColumnMeta.of(ctx.metadata().root(), scope.deptColumn(), Long.class), deptIds)
-                        : null;
-            }
-
-            case SELF -> {
-                Object userId = handler.getCurrentUserId();
-                yield userId != null
-                        ? new Eq(ColumnMeta.of(ctx.metadata().root(), scope.userColumn(), userId.getClass()), userId)
-                        : null;
-            }
-
-            case CUSTOM -> handler.customCondition(ctx.metadata().root().entityClass());
-        };
+            return clazz.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot instantiate DataScopeEnum: " + clazz.getName(), e);
+        }
     }
 }

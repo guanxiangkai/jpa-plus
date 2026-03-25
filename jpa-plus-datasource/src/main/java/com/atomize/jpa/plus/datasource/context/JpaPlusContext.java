@@ -1,5 +1,7 @@
 package com.atomize.jpa.plus.datasource.context;
 
+import com.atomize.jpa.plus.datasource.enums.DsName;
+
 import java.util.concurrent.Callable;
 
 /**
@@ -44,6 +46,52 @@ public final class JpaPlusContext {
     }
 
     /**
+     * 在指定数据源上下文中执行可能抛出 Throwable 的操作
+     *
+     * <p>主要供 AOP 切面使用（{@code ProceedingJoinPoint.proceed()} 声明抛出 {@code Throwable}）。</p>
+     *
+     * @param dsName 数据源名称
+     * @param task   待执行任务（允许抛出 Throwable）
+     * @param <R>    返回类型
+     * @return 任务执行结果
+     * @throws Throwable 执行异常
+     */
+    @SuppressWarnings("unchecked")
+    public static <R> R withDS(String dsName, ThrowableCallable<R> task) throws Throwable {
+        try {
+            return ScopedValue.where(CURRENT_DS, dsName).call(() -> {
+                try {
+                    return task.call();
+                } catch (Exception e) {
+                    throw e;
+                } catch (Throwable t) {
+                    // 将 Throwable 包装为 RuntimeException 透传出 ScopedValue.call()
+                    throw new ThrowableWrapper(t);
+                }
+            });
+        } catch (ThrowableWrapper wrapper) {
+            throw wrapper.getCause();
+        }
+    }
+
+    /**
+     * 获取当前数据源名称
+     *
+     * @return 数据源名称，默认返回 "master"
+     */
+    public static String currentDS() {
+        return CURRENT_DS.orElse(DsName.MASTER);
+    }
+
+    /**
+     * 允许抛出 Throwable 的 Callable（供 AOP 场景使用）
+     */
+    @FunctionalInterface
+    public interface ThrowableCallable<R> {
+        R call() throws Throwable;
+    }
+
+    /**
      * 在指定数据源上下文中执行无返回值的操作
      *
      * @param dsName 数据源名称
@@ -54,12 +102,12 @@ public final class JpaPlusContext {
     }
 
     /**
-     * 获取当前数据源名称
-     *
-     * @return 数据源名称，默认返回 "master"
+     * Throwable 包装器（内部使用，将 Throwable 透传过 Callable 边界）
      */
-    public static String currentDS() {
-        return CURRENT_DS.orElse("master");
+    private static class ThrowableWrapper extends RuntimeException {
+        ThrowableWrapper(Throwable cause) {
+            super(cause);
+        }
     }
 }
 

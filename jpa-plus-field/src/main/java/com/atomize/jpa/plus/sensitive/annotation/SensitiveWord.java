@@ -1,14 +1,28 @@
 package com.atomize.jpa.plus.sensitive.annotation;
 
+import com.atomize.jpa.plus.sensitive.spi.SensitiveStrategy;
+
 import java.lang.annotation.*;
 
 /**
  * 敏感词检测注解
  *
  * <p>标注在实体字段上，保存前自动检测敏感词。
- * 根据 {@link #strategy()} 决定是拒绝保存还是替换后保存。</p>
+ * 根据 {@link #strategy()} 决定处理方式。</p>
+ *
+ * <h3>使用方式</h3>
+ * <pre>{@code
+ * // 内置策略
+ * @SensitiveWord(strategy = SensitiveWordStrategy.REPLACE)
+ * private String content;
+ *
+ * // 自定义策略
+ * @SensitiveWord(customStrategy = MySensitiveStrategy.AUDIT.class)
+ * private String comment;
+ * }</pre>
  *
  * @author guanxiangkai
+ * @see SensitiveStrategy
  * @since 2026年03月25日 星期三
  */
 @Target(ElementType.FIELD)
@@ -17,13 +31,20 @@ import java.lang.annotation.*;
 public @interface SensitiveWord {
 
     /**
-     * 处理策略（默认拒绝）
+     * 内置处理策略（默认拒绝）
      */
     SensitiveWordStrategy strategy() default SensitiveWordStrategy.REJECT;
+
+    /**
+     * 自定义处理策略类（优先于 {@link #strategy()}）
+     *
+     * <p>指定一个实现了 {@link SensitiveStrategy} 的枚举或类。
+     * 设为默认值 {@code SensitiveStrategy.class} 表示不使用自定义策略。</p>
+     */
+    Class<? extends SensitiveStrategy> customStrategy() default SensitiveStrategy.class;
 
     /**
      * 替换字符（仅 REPLACE 策略生效）
      */
     String replacement() default "***";
 }
-

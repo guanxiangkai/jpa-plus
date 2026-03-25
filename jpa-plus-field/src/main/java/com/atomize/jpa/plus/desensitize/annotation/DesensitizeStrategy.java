@@ -1,17 +1,20 @@
 package com.atomize.jpa.plus.desensitize.annotation;
 
+import com.atomize.jpa.plus.desensitize.spi.MaskStrategy;
+
 /**
- * 脱敏策略枚举
+ * 内置脱敏策略枚举
  *
  * <p>定义常见的数据脱敏规则，每种策略封装自己的掩码算法。
- * 通过枚举多态替代 switch 分派，符合开闭原则（新增策略只需添加枚举常量）。</p>
+ * 通过枚举多态替代 switch 分派，符合开闭原则。</p>
  *
- * <p><b>设计模式：</b>策略模式（Strategy） —— 每个枚举值封装一种脱敏算法</p>
+ * <p>实现 {@link MaskStrategy} 接口，用户可自定义枚举实现该接口以扩展脱敏规则。</p>
  *
  * @author guanxiangkai
+ * @see MaskStrategy
  * @since 2026年03月25日 星期三
  */
-public enum DesensitizeStrategy {
+public enum DesensitizeStrategy implements MaskStrategy {
 
     /**
      * 手机号脱敏：138****1234

@@ -10,6 +10,7 @@ import com.atomize.jpa.plus.desensitize.handler.DesensitizeFieldHandler;
 import com.atomize.jpa.plus.dict.handler.DictFieldHandler;
 import com.atomize.jpa.plus.dict.spi.DictProvider;
 import com.atomize.jpa.plus.encrypt.handler.EncryptFieldHandler;
+import com.atomize.jpa.plus.encrypt.spi.EncryptKeyProvider;
 import com.atomize.jpa.plus.logicdelete.handler.LogicDeleteFieldHandler;
 import com.atomize.jpa.plus.orderby.interceptor.AutoOrderByInterceptor;
 import com.atomize.jpa.plus.query.compiler.DebugSqlCompiler;
@@ -103,8 +104,14 @@ public class JpaPlusAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public EncryptFieldHandler encryptFieldHandler(JpaPlusProperties properties) {
-        return new EncryptFieldHandler(properties.getEncrypt().getKey());
+    public EncryptKeyProvider encryptKeyProvider(JpaPlusProperties properties) {
+        return properties.getEncrypt()::getKey;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EncryptFieldHandler encryptFieldHandler(EncryptKeyProvider keyProvider) {
+        return new EncryptFieldHandler(keyProvider);
     }
 
     @Bean

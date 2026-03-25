@@ -46,6 +46,12 @@ spring-boot-configuration-processor = { group = "org.springframework.boot", name
 # ═══════════════════════════ Spring Framework ═══════════════════════════
 # Spring Context（ApplicationEventPublisher 等核心容器能力，版本由 BOM 管理）
 spring-context = { group = "org.springframework", name = "spring-context" }
+# Spring JDBC（AbstractRoutingDataSource 等数据源路由基础设施，版本由 BOM 管理）
+spring-jdbc = { group = "org.springframework", name = "spring-jdbc" }
+# Spring AOP（@Aspect 切面支持，版本由 BOM 管理）
+spring-aop = { group = "org.springframework", name = "spring-aop" }
+# AspectJ Weaver（@Aspect / @Around 等注解，版本由 BOM 管理）
+aspectjweaver = { group = "org.aspectj", name = "aspectjweaver" }
 
 # ═══════════════════════════ Spring Data ═══════════════════════════
 # Spring Data Commons（Pageable / Sort 等通用抽象，版本由 BOM 管理）
@@ -74,6 +80,9 @@ junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform
 
 # 测试全家桶（testImplementation 级别；spring-boot-starter-test 已传递引入 logback-classic）
 testing = ["spring-boot-starter-test", "junit-jupiter", "junit-platform-launcher"]
+
+# 多数据源路由所需的 Spring 基础设施（compileOnly 级别）
+spring-datasource = ["spring-jdbc", "spring-aop", "aspectjweaver", "spring-context"]
 
 
 # ╔═══════════════════════════════════════════════════════════════════════════════════════════════════╗

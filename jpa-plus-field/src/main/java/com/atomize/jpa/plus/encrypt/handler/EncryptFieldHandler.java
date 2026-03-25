@@ -3,6 +3,8 @@ package com.atomize.jpa.plus.encrypt.handler;
 import com.atomize.jpa.plus.core.field.FieldHandler;
 import com.atomize.jpa.plus.core.util.ReflectionUtils;
 import com.atomize.jpa.plus.encrypt.annotation.Encrypt;
+import com.atomize.jpa.plus.encrypt.enums.Algorithm;
+import com.atomize.jpa.plus.encrypt.spi.EncryptKeyProvider;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.Cipher;
@@ -10,6 +12,9 @@ import javax.crypto.spec.SecretKeySpec;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 字段加密处理器
@@ -21,10 +26,8 @@ import java.util.Base64;
  * </ul>
  * </p>
  *
- * <p>加密密钥通过构造函数注入，避免硬编码。生产环境应通过配置属性
- * {@code jpa-plus.encrypt.key} 注入密钥。</p>
- *
- * <p><b>设计模式：</b>策略模式（Strategy） —— 通过 {@link Encrypt#algorithm()} 选择不同加密策略</p>
+ * <p>加密密钥通过 {@link EncryptKeyProvider} SPI 获取，
+ * 加密算法通过 {@link Algorithm} 可扩展枚举确定。</p>
  *
  * @author guanxiangkai
  * @since 2026年03月25日 星期三
@@ -32,24 +35,15 @@ import java.util.Base64;
 @Slf4j
 public class EncryptFieldHandler implements FieldHandler {
 
-    private static final String DEFAULT_KEY = "JpaPlusEncKey128";
-
-    private final String encryptKey;
+    private final EncryptKeyProvider keyProvider;
 
     /**
-     * 使用默认密钥构造（仅用于开发/测试环境）
+     * 自定义算法实例缓存
      */
-    public EncryptFieldHandler() {
-        this(DEFAULT_KEY);
-    }
+    private final Map<Class<? extends Algorithm>, Algorithm> algorithmCache = new ConcurrentHashMap<>();
 
-    /**
-     * 使用指定密钥构造（推荐：生产环境通过配置注入）
-     *
-     * @param encryptKey AES 密钥（长度须为 16/24/32 字节）
-     */
-    public EncryptFieldHandler(String encryptKey) {
-        this.encryptKey = encryptKey;
+    public EncryptFieldHandler(EncryptKeyProvider keyProvider) {
+        this.keyProvider = Objects.requireNonNull(keyProvider, "EncryptKeyProvider must not be null");
     }
 
     @Override
@@ -67,8 +61,8 @@ public class EncryptFieldHandler implements FieldHandler {
         try {
             Object value = ReflectionUtils.getFieldValue(entity, field);
             if (value instanceof String plainText) {
-                Encrypt encrypt = field.getAnnotation(Encrypt.class);
-                String encrypted = doEncrypt(plainText, encrypt.algorithm());
+                Algorithm algo = resolveAlgorithm(field.getAnnotation(Encrypt.class));
+                String encrypted = doEncrypt(plainText, algo);
                 ReflectionUtils.setFieldValue(entity, field, encrypted);
             }
         } catch (Exception e) {
@@ -81,8 +75,8 @@ public class EncryptFieldHandler implements FieldHandler {
         try {
             Object value = ReflectionUtils.getFieldValue(entity, field);
             if (value instanceof String encryptedText) {
-                Encrypt encrypt = field.getAnnotation(Encrypt.class);
-                String decrypted = doDecrypt(encryptedText, encrypt.algorithm());
+                Algorithm algo = resolveAlgorithm(field.getAnnotation(Encrypt.class));
+                String decrypted = doDecrypt(encryptedText, algo);
                 ReflectionUtils.setFieldValue(entity, field, decrypted);
             }
         } catch (Exception e) {
@@ -90,17 +84,42 @@ public class EncryptFieldHandler implements FieldHandler {
         }
     }
 
-    private String doEncrypt(String plainText, String algorithm) throws Exception {
-        SecretKeySpec keySpec = new SecretKeySpec(encryptKey.getBytes(StandardCharsets.UTF_8), algorithm);
-        Cipher cipher = Cipher.getInstance(algorithm);
+    /**
+     * 解析算法：customAlgorithm 优先于 algorithm
+     */
+    private Algorithm resolveAlgorithm(Encrypt annotation) {
+        Class<? extends Algorithm> customClass = annotation.customAlgorithm();
+        if (customClass != Algorithm.class) {
+            return algorithmCache.computeIfAbsent(customClass, this::instantiate);
+        }
+        return annotation.algorithm();
+    }
+
+    private Algorithm instantiate(Class<? extends Algorithm> clazz) {
+        try {
+            if (clazz.isEnum()) {
+                Algorithm[] constants = clazz.getEnumConstants();
+                if (constants.length > 0) return constants[0];
+            }
+            return clazz.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot instantiate Algorithm: " + clazz.getName(), e);
+        }
+    }
+
+    private String doEncrypt(String plainText, Algorithm algo) throws Exception {
+        String key = keyProvider.getKey();
+        SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), algo.algorithmName());
+        Cipher cipher = Cipher.getInstance(algo.transformation());
         cipher.init(Cipher.ENCRYPT_MODE, keySpec);
         byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
         return Base64.getEncoder().encodeToString(encrypted);
     }
 
-    private String doDecrypt(String encryptedText, String algorithm) throws Exception {
-        SecretKeySpec keySpec = new SecretKeySpec(encryptKey.getBytes(StandardCharsets.UTF_8), algorithm);
-        Cipher cipher = Cipher.getInstance(algorithm);
+    private String doDecrypt(String encryptedText, Algorithm algo) throws Exception {
+        String key = keyProvider.getKey();
+        SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), algo.algorithmName());
+        Cipher cipher = Cipher.getInstance(algo.transformation());
         cipher.init(Cipher.DECRYPT_MODE, keySpec);
         byte[] decoded = Base64.getDecoder().decode(encryptedText);
         byte[] decrypted = cipher.doFinal(decoded);

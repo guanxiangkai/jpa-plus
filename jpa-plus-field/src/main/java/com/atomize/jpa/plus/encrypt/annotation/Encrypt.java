@@ -1,5 +1,8 @@
 package com.atomize.jpa.plus.encrypt.annotation;
 
+import com.atomize.jpa.plus.encrypt.enums.Algorithm;
+import com.atomize.jpa.plus.encrypt.enums.EncryptAlgorithm;
+
 import java.lang.annotation.*;
 
 /**
@@ -8,9 +11,24 @@ import java.lang.annotation.*;
  * <p>标注在实体字段上，保存前自动加密、查询后自动解密。
  * 仅支持 {@link String} 类型字段。</p>
  *
- * <p><b>设计模式：</b>标记注解模式（Marker Annotation），配合策略模式（Strategy）选择加密算法</p>
+ * <h3>使用方式</h3>
+ * <pre>{@code
+ * // 使用内置算法（默认 AES）
+ * @Encrypt
+ * private String idCard;
+ *
+ * // 指定算法
+ * @Encrypt(algorithm = EncryptAlgorithm.AES_CBC)
+ * private String bankCard;
+ *
+ * // 自定义算法
+ * @Encrypt(customAlgorithm = MyAlgorithm.SM4.class)
+ * private String secret;
+ * }</pre>
  *
  * @author guanxiangkai
+ * @see Algorithm
+ * @see EncryptAlgorithm
  * @since 2026年03月25日 星期三
  */
 @Target(ElementType.FIELD)
@@ -19,10 +37,15 @@ import java.lang.annotation.*;
 public @interface Encrypt {
 
     /**
-     * 加密算法名称（默认 AES）
-     *
-     * @return 算法名称，须为 {@link javax.crypto.Cipher} 支持的算法
+     * 内置加密算法（默认 AES）
      */
-    String algorithm() default "AES";
-}
+    EncryptAlgorithm algorithm() default EncryptAlgorithm.AES;
 
+    /**
+     * 自定义加密算法类（优先于 {@link #algorithm()}）
+     *
+     * <p>指定一个实现了 {@link Algorithm} 的枚举或类。
+     * 设为默认值 {@code Algorithm.class} 表示不使用自定义算法。</p>
+     */
+    Class<? extends Algorithm> customAlgorithm() default Algorithm.class;
+}
