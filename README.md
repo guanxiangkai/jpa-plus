@@ -136,7 +136,7 @@ jpa-plus
 |-------------|-----------------------------|
 | JDK         | 25+（需启用 `--enable-preview`） |
 | Spring Boot | 4.1+                        |
-| Gradle      | 8.x+（Kotlin DSL）            |
+| Gradle      | 9.4+（Kotlin DSL）            |
 
 ### 1. 添加依赖
 
@@ -648,7 +648,7 @@ private Integer version;                   // 支持 Integer / Long
 | Spring Data JPA     | (BOM 管理)          | Repository 抽象、Pageable                         |
 | JUnit               | 6.1.0-M1          | 单元测试                                           |
 | Lombok              | 9.2.0 (plugin)    | 编译期代码生成（`@Slf4j`、`@RequiredArgsConstructor` 等） |
-| Gradle              | 8.x+ (Kotlin DSL) | 构建系统                                           |
+| Gradle              | 9.4+ (Kotlin DSL) | 构建系统                                           |
 
 ---
 
