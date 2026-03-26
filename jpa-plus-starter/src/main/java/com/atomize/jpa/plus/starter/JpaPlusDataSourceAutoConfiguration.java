@@ -10,7 +10,7 @@ import com.atomize.jpa.plus.datasource.refresh.ScheduledDataSourceRefresher;
 import com.atomize.jpa.plus.datasource.registry.DynamicDataSourceRegistry;
 import com.atomize.jpa.plus.datasource.routing.DynamicRoutingDataSource;
 import com.atomize.jpa.plus.datasource.spi.DataSourcePostProcessor;
-import com.atomize.jpa.plus.datasource.tx.DynamicTransactionManager;
+import com.atomize.jpa.plus.starter.condition.DynamicDataSourceConfiguredCondition;
 import com.atomize.jpa.plus.starter.creator.HikariDataSourceCreator;
 import com.atomize.jpa.plus.starter.provider.EnvironmentDataSourceProvider;
 import org.springframework.beans.factory.ObjectProvider;
@@ -21,9 +21,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -34,7 +34,7 @@ import java.util.List;
  * <p>当满足以下条件时自动激活：
  * <ul>
  *   <li>{@link DynamicRoutingDataSource} 类在 classpath 上（jpa-plus-datasource 模块已引入）</li>
- *   <li>{@code spring.datasource.dynamic.datasource} 中至少配置了一个数据源</li>
+ *   <li>{@code spring.datasource.dynamic.datasource} 中至少配置了一个数据源（Map 类型，使用自定义 Condition 检测）</li>
  * </ul>
  * </p>
  *
@@ -80,8 +80,17 @@ import java.util.List;
  *   <li>全局 HikariCP 配置作为默认值，各数据源可单独覆盖</li>
  *   <li>{@link DynamicDataSourceRegistry} 创建并注册所有数据源，经 {@link DataSourcePostProcessor} 链处理</li>
  *   <li>{@link DynamicRoutingDataSource} 作为 {@code @Primary DataSource}</li>
- *   <li>{@link DynamicTransactionManager} 根据 {@code @DS} 上下文自动路由事务</li>
+ *   <li>事务由 Spring Boot 自动配置的 {@code JpaTransactionManager} 管理（基于 @Primary 路由数据源）</li>
  *   <li>定时刷新 / 事件驱动刷新自动检测配置变更</li>
+ * </ol>
+ *
+ * <h3>事务模型</h3>
+ * <p>本框架采用 <b>JPA 兼容</b> 的事务模型：</p>
+ * <ol>
+ *   <li>{@code @DS("slave")} 切面（优先级最高）先于 {@code @Transactional} 设置路由 key</li>
+ *   <li>{@code JpaTransactionManager} 开启事务时从 {@link DynamicRoutingDataSource} 获取连接 → 路由到正确的底层数据源</li>
+ *   <li>同一事务内的所有操作共享同一连接，保证单数据源事务一致性</li>
+ *   <li>跨数据源操作需使用 {@code @Transactional(propagation = REQUIRES_NEW)} 或集成 Seata 分布式事务</li>
  * </ol>
  *
  * <h3>扩展点</h3>
@@ -90,11 +99,12 @@ import java.util.List;
  *
  * @author guanxiangkai
  * @see DynamicDataSourceProperties
+ * @see DynamicDataSourceConfiguredCondition
  * @since 2026年03月25日 星期三
  */
 @AutoConfiguration(before = DataSourceAutoConfiguration.class)
 @ConditionalOnClass(DynamicRoutingDataSource.class)
-@ConditionalOnProperty(prefix = "spring.datasource.dynamic", name = "datasource")
+@Conditional(DynamicDataSourceConfiguredCondition.class)
 @EnableConfigurationProperties(DynamicDataSourceProperties.class)
 public class JpaPlusDataSourceAutoConfiguration {
 
@@ -130,22 +140,13 @@ public class JpaPlusDataSourceAutoConfiguration {
         return new DynamicRoutingDataSource(properties.getPrimary(), properties.isStrict());
     }
 
-    // ─────────── 动态事务管理器 ───────────
-
-    @Bean
-    @ConditionalOnMissingBean(DynamicTransactionManager.class)
-    public DynamicTransactionManager dynamicTransactionManager(DynamicDataSourceProperties properties) {
-        return new DynamicTransactionManager(properties.getPrimary());
-    }
-
-    @Bean
-    @Primary
-    @ConditionalOnMissingBean(name = "transactionManager")
-    public PlatformTransactionManager transactionManager(DynamicTransactionManager dynamicTransactionManager) {
-        return dynamicTransactionManager;
-    }
-
     // ─────────── 数据源注册中心 ───────────
+    //
+    // 事务管理由 Spring Boot 自动配置的 JpaTransactionManager 负责：
+    //   1. @DS 切面（@Order(HIGHEST_PRECEDENCE)）先于 @Transactional 设置路由 key
+    //   2. JpaTransactionManager 从 @Primary DynamicRoutingDataSource 获取连接 → 路由到正确的底层数据源
+    //   3. 单数据源事务一致性由 JPA 原生事务保证
+    //   4. 跨数据源分布式事务通过 DataSourcePostProcessor 集成 Seata 实现
 
     @Bean
     @ConditionalOnMissingBean
@@ -153,11 +154,10 @@ public class JpaPlusDataSourceAutoConfiguration {
             DynamicRoutingDataSource routingDataSource,
             DataSourceCreator creator,
             DataSourceProvider provider,
-            ObjectProvider<DataSourcePostProcessor> postProcessors,
-            DynamicTransactionManager dynamicTransactionManager) {
+            ObjectProvider<DataSourcePostProcessor> postProcessors) {
         List<DataSourcePostProcessor> processorList = postProcessors.orderedStream().toList();
         var registry = new DynamicDataSourceRegistry(
-                routingDataSource, creator, provider, processorList, dynamicTransactionManager);
+                routingDataSource, creator, provider, processorList, null);
         registry.init();
         return registry;
     }

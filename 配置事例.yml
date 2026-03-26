@@ -229,6 +229,29 @@ spring:
         enabled: true             # 是否暴露数据源健康检查（配合 Spring Boot Actuator）
         include-detail: true      # 是否在健康信息中包含各数据源详情
 
+  # ──────────────────────────────────────────────────────────────────────────
+  #  事务模型说明（JPA 兼容）
+  # ──────────────────────────────────────────────────────────────────────────
+  # 框架采用 JPA 原生 JpaTransactionManager，不再自定义 @Primary 事务管理器。
+  #
+  # 执行流程：
+  #   1. @DS("slave") 切面（@Order(HIGHEST_PRECEDENCE)）先于 @Transactional 设置路由 key
+  #   2. JpaTransactionManager 开启事务时从 @Primary DynamicRoutingDataSource 获取连接
+  #      → DynamicRoutingDataSource.determineTargetDataSource() 根据 ScopedValue 路由到正确的底层数据源
+  #   3. 同一事务内的所有操作共享同一连接，保证单数据源 ACID 事务
+  #   4. 事务结束后 ScopedValue 作用域自动退出，恢复到上层数据源
+  #
+  # 跨数据源事务方案：
+  #   方案一：独立事务（@Transactional(propagation = REQUIRES_NEW)）
+  #     - 在不同数据源的操作上分别标注 @DS + @Transactional(propagation = REQUIRES_NEW)
+  #     - 各数据源独立事务，互不影响（适合对一致性要求不高的场景）
+  #
+  #   方案二：Seata 分布式事务（通过 DataSourcePostProcessor 扩展点集成）
+  #     - 不需要在 YAML 中添加任何 seata 配置
+  #     - 用户只需实现 DataSourcePostProcessor，按需对数据源进行 Seata 代理
+  #     - 详见 GUIDE.md "分布式事务集成" 章节
+  # ──────────────────────────────────────────────────────────────────────────
+
   # ----------------------------------------------------------------------------
   # 2.2 JPA 全局配置
   # 注意：使用动态多数据源时，不要写死 hibernate.dialect，

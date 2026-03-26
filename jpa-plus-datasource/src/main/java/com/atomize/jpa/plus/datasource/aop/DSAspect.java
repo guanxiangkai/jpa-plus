@@ -8,6 +8,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Method;
@@ -32,6 +34,9 @@ import java.lang.reflect.Method;
  * 离开 {@code ScopedValue.where().call()} 块后自动回到外层绑定值（或无绑定 → master）。</p>
  *
  * <h3>事务安全</h3>
+ * <p>切面使用 {@code @Order(Ordered.HIGHEST_PRECEDENCE)}，保证在 {@code @Transactional} 事务拦截器
+ * <b>之前</b>执行，使得 ScopedValue 路由 key 在事务开启（获取连接）前就已设置。</p>
+ *
  * <p>在活跃事务内切换到 <b>不同</b> 数据源时，切面会抛出异常以防止数据一致性问题。
  * 如需跨库操作，建议使用 {@code @Transactional(propagation = REQUIRES_NEW)} 开启新事务，
  * 或通过 {@link com.atomize.jpa.plus.datasource.spi.DataSourcePostProcessor}
@@ -47,6 +52,7 @@ import java.lang.reflect.Method;
  */
 @Slf4j
 @Aspect
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class DSAspect {
 
     /**
