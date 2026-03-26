@@ -108,7 +108,7 @@ public class DynamicRoutingDataSource extends AbstractRoutingDataSource {
      * 在设置好所有目标数据源后调用。</p>
      */
     public void initialize() {
-        super.afterPropertiesSet();
+        super.initialize();
     }
 }
 

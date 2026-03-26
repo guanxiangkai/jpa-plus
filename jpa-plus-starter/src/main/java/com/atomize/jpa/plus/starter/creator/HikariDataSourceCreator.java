@@ -81,6 +81,12 @@ public class HikariDataSourceCreator implements DataSourceCreator {
                 definition.dbType() != null ? definition.dbType().typeName() : "auto",
                 definition.url());
 
-        return new HikariDataSource(config);
+        try {
+            return new HikariDataSource(config);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Failed to create HikariCP pool '" + definition.name() + "' for URL: " + definition.url() +
+                            ". Cause: " + e.getMessage(), e);
+        }
     }
 }

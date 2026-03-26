@@ -99,18 +99,30 @@ public class DynamicDataSourceRegistry {
      */
     public synchronized void init() {
         List<DataSourceDefinition> definitions = provider.provide();
-        for (DataSourceDefinition def : definitions) {
-            DataSource ds = createAndPostProcess(def);
-            dataSourceMap.put(def.name(), ds);
-            definitionMap.put(def.name(), def);
-            registerTxManager(def.name(), ds);
+        if (definitions.isEmpty()) {
+            throw new IllegalStateException(
+                    "No datasource definitions provided! Check 'spring.datasource.dynamic.datasource' configuration.");
         }
-        syncToRouting();
+        for (DataSourceDefinition def : definitions) {
+            try {
+                DataSource ds = createAndPostProcess(def);
+                dataSourceMap.put(def.name(), ds);
+                definitionMap.put(def.name(), def);
+                registerTxManager(def.name(), ds);
+            } catch (Exception e) {
+                throw new IllegalStateException(
+                        "Failed to create datasource '" + def.name() + "' (url=" + def.url() + "): " + e.getMessage(), e);
+            }
+        }
 
         if (!dataSourceMap.containsKey(primaryName)) {
-            log.warn("Primary datasource '{}' not found in provider definitions! Available: {}",
-                    primaryName, dataSourceMap.keySet());
+            throw new IllegalStateException(
+                    "Primary datasource '" + primaryName + "' not found in provider definitions! " +
+                            "Available: " + dataSourceMap.keySet() +
+                            ". Check 'spring.datasource.dynamic.primary' matches a configured datasource name.");
         }
+
+        syncToRouting();
         log.info("DataSource registry initialized: {}", dataSourceMap.keySet());
     }
 

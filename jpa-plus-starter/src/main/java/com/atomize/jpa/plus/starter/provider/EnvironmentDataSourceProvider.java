@@ -111,7 +111,17 @@ public class EnvironmentDataSourceProvider implements DataSourceProvider {
         HikariProperties globalHikari = props.getHikari();
         List<DataSourceDefinition> definitions = new ArrayList<>();
 
-        props.getDatasource().forEach((name, item) -> {
+        var datasourceMap = props.getDatasource();
+        if (datasourceMap == null || datasourceMap.isEmpty()) {
+            log.warn("No datasources found under 'spring.datasource.dynamic.datasource'");
+            return List.of();
+        }
+        datasourceMap.forEach((name, item) -> {
+            if (item.getUrl() == null || item.getUrl().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Datasource '" + name + "' has no URL configured. " +
+                                "Check 'spring.datasource.dynamic.datasource." + name + ".url'");
+            }
             definitions.add(toDefinition(name, item, globalHikari));
         });
 
