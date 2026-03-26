@@ -8,6 +8,7 @@ import com.atomize.jpa.plus.core.interceptor.DataInterceptor;
 import com.atomize.jpa.plus.core.interceptor.InterceptorChain;
 import com.atomize.jpa.plus.desensitize.handler.DesensitizeFieldHandler;
 import com.atomize.jpa.plus.dict.handler.DictFieldHandler;
+import com.atomize.jpa.plus.dict.provider.JdbcDictProvider;
 import com.atomize.jpa.plus.dict.spi.DictProvider;
 import com.atomize.jpa.plus.encrypt.handler.EncryptFieldHandler;
 import com.atomize.jpa.plus.encrypt.spi.EncryptKeyProvider;
@@ -31,9 +32,12 @@ import jakarta.persistence.EntityManager;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
+import javax.sql.DataSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -138,6 +142,16 @@ public class JpaPlusAutoConfiguration {
     @ConditionalOnMissingBean
     public AutoOrderByInterceptor autoOrderByInterceptor() {
         return new AutoOrderByInterceptor();
+    }
+
+    // ─────────── 字典数据提供者（内置 JDBC 实现） ───────────
+
+    @Bean
+    @ConditionalOnMissingBean(DictProvider.class)
+    @ConditionalOnProperty(prefix = "jpa-plus.dict.jdbc", name = "enabled", havingValue = "true")
+    public JdbcDictProvider jdbcDictProvider(DataSource dataSource, JpaPlusProperties properties) {
+        var dictConfig = properties.getDict().getJdbc();
+        return new JdbcDictProvider(dataSource, dictConfig.getTableName(), dictConfig.isAutoInitSchema());
     }
 
     @Bean

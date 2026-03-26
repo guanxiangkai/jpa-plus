@@ -41,5 +41,26 @@ public class DynamicRoutingDataSource extends AbstractRoutingDataSource {
         }
         return ds;
     }
+
+    /**
+     * 延迟初始化 —— 由 {@link com.atomize.jpa.plus.datasource.registry.DynamicDataSourceRegistry}
+     * 在注册完所有数据源后调用 {@link #initialize()} 完成实际初始化。
+     *
+     * <p>重写为空操作，避免 Spring 容器在目标数据源尚未就绪时提前调用导致异常。</p>
+     */
+    @Override
+    public void afterPropertiesSet() {
+        // No-op: deferred to initialize()
+    }
+
+    /**
+     * 执行实际初始化（解析目标数据源映射）
+     *
+     * <p>由 {@link com.atomize.jpa.plus.datasource.registry.DynamicDataSourceRegistry#init()}
+     * 在设置好所有目标数据源后调用。</p>
+     */
+    public void initialize() {
+        super.afterPropertiesSet();
+    }
 }
 

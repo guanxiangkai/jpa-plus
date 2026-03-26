@@ -23,7 +23,7 @@ dependencies {
 
     // ═══════════ Spring Boot ═══════════
     api(libs.spring.boot.starter.data.jpa)
-    implementation(libs.spring.boot.autoconfigure)
+    implementation(libs.bundles.spring.boot.infra)      // autoconfigure + jdbc（Spring Boot 4.x 模块化）
     annotationProcessor(platform(libs.spring.boot.dependencies))
     annotationProcessor(libs.spring.boot.configuration.processor)
 }

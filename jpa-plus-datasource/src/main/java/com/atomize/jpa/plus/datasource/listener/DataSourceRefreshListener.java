@@ -1,5 +1,6 @@
 package com.atomize.jpa.plus.datasource.listener;
 
+import com.atomize.jpa.plus.datasource.event.DataSourceChangeEvent;
 import com.atomize.jpa.plus.datasource.registry.DynamicDataSourceRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,14 +10,24 @@ import org.springframework.context.event.EventListener;
 /**
  * 数据源配置变更监听器
  *
- * <p>监听 Spring 的 {@link ContextRefreshedEvent}，
- * 在应用上下文刷新时调用 {@link DynamicDataSourceRegistry#reload()} 差异化刷新数据源。</p>
+ * <p>监听以下事件并触发数据源差异化刷新：</p>
+ * <ul>
+ *   <li>{@link ContextRefreshedEvent} —— Spring 上下文刷新（应用启动 / 热重载）</li>
+ *   <li>{@link DataSourceChangeEvent} —— 自定义数据源变更事件（编程式 / 配置中心触发）</li>
+ * </ul>
  *
- * <p>搭配 Nacos / Apollo / Spring Cloud Config 等配置中心时，
- * 配置变更触发的 EnvironmentChangeEvent 也可通过注册额外监听器调用 {@code registry.reload()} 实现热更新。</p>
+ * <h3>触发刷新的方式</h3>
+ * <ol>
+ *   <li><b>自动触发</b> —— 应用启动时 {@link ContextRefreshedEvent} 自动触发</li>
+ *   <li><b>编程式触发</b> —— 注入 {@link com.atomize.jpa.plus.datasource.refresh.DataSourceRefresher}
+ *       调用 {@code refresh()} 或直接发布 {@link DataSourceChangeEvent}</li>
+ *   <li><b>定时触发</b> —— 配置 {@code jpa-plus.datasource.dynamic.schedule.enabled=true}
+ *       开启定时轮询</li>
+ *   <li><b>配置中心</b> —— Nacos / Apollo 等配置变更回调中发布 {@link DataSourceChangeEvent}</li>
+ * </ol>
  *
- * <p><b>设计模式：</b>观察者模式（Observer） —— 使用 {@code @EventListener} 替代
- * 传统的 {@code ApplicationListener} 接口实现，更简洁且支持条件过滤</p>
+ * <p><b>设计模式：</b>观察者模式（Observer） —— 使用 {@code @EventListener} 声明式监听，
+ * 解耦变更源与刷新逻辑</p>
  *
  * @author guanxiangkai
  * @since 2026年03月25日 星期三
@@ -32,6 +43,15 @@ public class DataSourceRefreshListener {
      */
     @EventListener
     public void onContextRefreshed(ContextRefreshedEvent event) {
+        registry.reload();
+    }
+
+    /**
+     * 收到数据源变更事件时重新加载数据源
+     */
+    @EventListener
+    public void onDataSourceChange(DataSourceChangeEvent event) {
+        log.info("Received DataSourceChangeEvent, reloading datasources...");
         registry.reload();
     }
 }

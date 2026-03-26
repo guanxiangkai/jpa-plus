@@ -4,6 +4,7 @@ import com.atomize.jpa.plus.datasource.creator.DataSourceCreator;
 import com.atomize.jpa.plus.datasource.model.DataSourceDefinition;
 import com.atomize.jpa.plus.datasource.provider.DataSourceProvider;
 import com.atomize.jpa.plus.datasource.routing.DynamicRoutingDataSource;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
@@ -46,8 +47,22 @@ public class DynamicDataSourceRegistry {
 
     /**
      * 数据源定义快照（用于 reload 时判断配置是否变更）
+     *
+     * <p>注意：通过 {@link #setPrimaryDataSource(DataSource)} 注册的主数据源
+     * 不在此快照中，因此 {@link #reload()} 不会移除或修改主数据源。</p>
      */
     private final Map<String, DataSourceDefinition> definitionMap = new ConcurrentHashMap<>();
+
+    /**
+     * 预注册的主数据源（来自 Spring Boot {@code spring.datasource.*} 配置）
+     * -- SETTER --
+     * 设置预注册的主数据源
+     * <p>此数据源将作为 "master" 注册到路由表中，不受 Provider 管理。
+     * 适用于主数据源由 Spring Boot 自动配置的场景。</p>
+     *
+     */
+    @Setter
+    private DataSource primaryDataSource;
 
     public DynamicDataSourceRegistry(DynamicRoutingDataSource routingDataSource,
                                      DataSourceCreator creator,
@@ -58,9 +73,16 @@ public class DynamicDataSourceRegistry {
     }
 
     /**
-     * 初始化 —— 从 Provider 加载全部数据源（启动时调用）
+     * 初始化 —— 注册主数据源 + 从 Provider 加载额外数据源（启动时调用）
      */
     public synchronized void init() {
+        // ① 预注册主数据源（不在 definitionMap 中，reload 时不会被移除）
+        if (primaryDataSource != null && !dataSourceMap.containsKey(DynamicRoutingDataSource.MASTER)) {
+            dataSourceMap.put(DynamicRoutingDataSource.MASTER, primaryDataSource);
+            log.debug("Primary datasource pre-registered as '{}'", DynamicRoutingDataSource.MASTER);
+        }
+
+        // ② 从 Provider 加载额外数据源
         List<DataSourceDefinition> definitions = provider.provide();
         for (DataSourceDefinition def : definitions) {
             DataSource ds = creator.createDataSource(def);
@@ -199,7 +221,7 @@ public class DynamicDataSourceRegistry {
             routingDataSource.setDefaultTargetDataSource(master);
         }
 
-        routingDataSource.afterPropertiesSet();
+        routingDataSource.initialize();
     }
 
     private void closeQuietly(DataSource ds) {

@@ -1,2 +1,3 @@
 com.atomize.jpa.plus.starter.JpaPlusAutoConfiguration
+com.atomize.jpa.plus.starter.JpaPlusDataSourceAutoConfiguration
 
