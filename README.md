@@ -26,20 +26,20 @@
 
 ## ✨ 功能特性
 
-| 功能模块      | 说明                                          | 注解 / API                       |
-|-----------|---------------------------------------------|--------------------------------|
-| **查询增强**  | Lambda DSL 条件构造、多表 Join、分页优化、多方言 SQL 编译     | `QueryWrapper` / `JoinWrapper` |
-| **字段加密**  | 保存前自动加密，查询后自动解密（AES 等）                      | `@Encrypt`                     |
-| **数据脱敏**  | 查询后自动掩码（手机号、邮箱、身份证、姓名、银行卡、地址等）              | `@Desensitize`                 |
-| **敏感词检测** | 保存前检测敏感词，支持拒绝 / 替换策略                        | `@SensitiveWord`               |
-| **字典回写**  | 查询后自动翻译字典值为标签                               | `@Dict`                        |
-| **乐观锁**   | 保存时自动递增版本号                                  | `@Version`                     |
-| **逻辑删除**  | 查询自动追加未删除条件，删除改写为 UPDATE                    | `@LogicDelete`                 |
-| **多租户隔离** | 自动注入 `tenant_id` 条件实现数据隔离                   | `TenantInterceptor`            |
-| **数据权限**  | 查询前自动注入行级权限条件                               | `PermissionInterceptor`        |
-| **审计日志**  | 操作完成后发布 Spring 事件，支持异步审计                    | `AuditEvent`                   |
-| **自动排序**  | 实体字段声明默认排序规则，查询时自动注入 ORDER BY               | `@AutoOrderBy`                 |
-| **多数据源**  | 基于 `ScopedValue` 的线程安全数据源切换，内置 JDBC 配置表自动发现 | `@DS` / `JpaPlusContext`       |
+| 功能模块      | 说明                                                           | 注解 / API                       |
+|-----------|--------------------------------------------------------------|--------------------------------|
+| **查询增强**  | Lambda DSL 条件构造、多表 Join、分页优化、多方言 SQL 编译                      | `QueryWrapper` / `JoinWrapper` |
+| **字段加密**  | 保存前自动加密，查询后自动解密（AES 等）                                       | `@Encrypt`                     |
+| **数据脱敏**  | 查询后自动掩码（手机号、邮箱、身份证、姓名、银行卡、地址等）                               | `@Desensitize`                 |
+| **敏感词检测** | 保存前检测敏感词，支持拒绝 / 替换策略                                         | `@SensitiveWord`               |
+| **字典回写**  | 查询后自动翻译字典值为标签                                                | `@Dict`                        |
+| **乐观锁**   | 保存时自动递增版本号                                                   | `@Version`                     |
+| **逻辑删除**  | 查询自动追加未删除条件，删除改写为 UPDATE                                     | `@LogicDelete`                 |
+| **多租户隔离** | 自动注入 `tenant_id` 条件实现数据隔离                                    | `TenantInterceptor`            |
+| **数据权限**  | 查询前自动注入行级权限条件                                                | `PermissionInterceptor`        |
+| **审计日志**  | 操作完成后发布 Spring 事件，支持异步审计                                     | `AuditEvent`                   |
+| **自动排序**  | 实体字段声明默认排序规则，查询时自动注入 ORDER BY                                | `@AutoOrderBy`                 |
+| **多数据源**  | 基于 `ScopedValue` 的线程安全数据源切换，YAML 声明式多数据源 + 自动检测 DatabaseType | `@DS` / `JpaPlusContext`       |
 
 ---
 
@@ -54,7 +54,7 @@ jpa-plus
 ├── jpa-plus-interceptor    # 数据拦截 — @LogicDelete 逻辑删除 / @AutoOrderBy 自动排序
 │                           #           PermissionInterceptor 数据权限 / TenantInterceptor 多租户
 ├── jpa-plus-audit          # 审计日志 — AuditInterceptor + Spring Event
-├── jpa-plus-datasource     # 多数据源 — @DS + ScopedValue 上下文 + JDBC 配置表自动发现 + 动态刷新
+├── jpa-plus-datasource     # 多数据源 — @DS + ScopedValue 上下文 + YAML 声明式配置 + DatabaseType 自动检测 + 动态刷新
 ├── jpa-plus-starter        # Spring Boot Starter — 自动装配 + JpaPlusRepository
 └── jpa-plus-all            # 全功能聚合包（一次引入所有模块）
 ```
@@ -127,11 +127,18 @@ dependencies {
 
 ### 动态数据源自动发现
 
-- **JDBC 配置表自动发现** — `JdbcDataSourceProvider` 内置从数据库表（`jpa_plus_datasource`）自动读取数据源配置，用户无需手动实现
-  `DataSourceProvider`
+- **YAML 声明式多数据源** — `spring.datasource.dynamic.datasource.*` 直接在 YAML 中声明所有数据源（含 master），无需单独的
+  `spring.datasource.*` 配置
+- **DatabaseType 自动检测** — 根据 JDBC URL 前缀自动识别数据库类型（MySQL / PostgreSQL / Oracle 等 10 种），无需手动指定
+  `driver-class-name`
+- **全局 + 局部 HikariCP 配置** — 全局 `hikari` 作为默认值，各数据源可通过自己的 `hikari` 节点覆盖
+- **Strict 严格模式** — `strict: true` 时，路由 key 不存在则抛异常，防止误路由到默认库
+- **可配置 Primary** — `primary: master` 指定默认数据源名称，不再硬编码 "master"
+- **JDBC 配置表（可选）** — `JdbcDataSourceProvider` 从数据库表读取数据源配置，可与 YAML 配置共存
+- **配置中心友好** — `EnvironmentDataSourceProvider` 每次从 Spring `Environment` 重新绑定，天然支持 Nacos / Apollo 推送
 - **多方言自动建表** — 根据主库类型自动选择 MySQL / PostgreSQL / Oracle / H2 方言 DDL 创建配置表
-- **三种动态刷新机制** — 编程式 `DataSourceRefresher.refresh()`、事件驱动 `DataSourceChangeEvent`、定时轮询
-  `ScheduledDataSourceRefresher`
+- **多种动态刷新机制** — 定时轮询 `ScheduledDataSourceRefresher`、编程式 `DataSourceRefresher.refresh()`、事件驱动
+  `DataSourceChangeEvent`
 - **HikariCP 创建器** — `HikariDataSourceCreator` 开箱即用，支持完整连接池参数配置
 - **Spring Boot 4.x 自动装配** — `JpaPlusDataSourceAutoConfiguration` 在 `DataSourceAutoConfiguration` 之前运行，透明替换为路由数据源
 

@@ -8,6 +8,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Method;
 
@@ -30,6 +31,12 @@ import java.lang.reflect.Method;
  * 与 ThreadLocal 不同，它不需要手动 remove()，
  * 离开 {@code ScopedValue.where().call()} 块后自动回到外层绑定值（或无绑定 → master）。</p>
  *
+ * <h3>事务安全</h3>
+ * <p>在活跃事务内切换到 <b>不同</b> 数据源时，切面会抛出异常以防止数据一致性问题。
+ * 如需跨库操作，建议使用 {@code @Transactional(propagation = REQUIRES_NEW)} 开启新事务，
+ * 或通过 {@link com.atomize.jpa.plus.datasource.spi.DataSourcePostProcessor}
+ * 集成 Seata 等分布式事务框架。</p>
+ *
  * <h3>优先级</h3>
  * <p>方法级 {@code @DS} 优先于类级 {@code @DS}。</p>
  *
@@ -50,6 +57,9 @@ public class DSAspect {
     public Object around(ProceedingJoinPoint point) throws Throwable {
         String dsName = resolveDS(point);
 
+        // ── 事务安全检测 ──
+        checkTransactionConflict(dsName, point);
+
         if (log.isDebugEnabled()) {
             log.debug("@DS switch: {} → {}", point.getSignature().toShortString(), dsName);
         }
@@ -58,6 +68,36 @@ public class DSAspect {
         // - 进入块：CURRENT_DS 绑定为 dsName
         // - 退出块（正常/异常）：CURRENT_DS 自动恢复为外层绑定值（无外层则回到 unbound → master）
         return JpaPlusContext.withDS(dsName, (JpaPlusContext.ThrowableCallable<Object>) point::proceed);
+    }
+
+    /**
+     * 检测事务冲突 —— 在活跃事务内不允许切换到不同的数据源
+     *
+     * <p>Spring 的 {@code @Transactional} 事务绑定在特定数据源的连接上，
+     * 如果在事务中途切换数据源，新的 SQL 会走不同的连接，
+     * 导致事务语义被破坏（部分提交 / 部分回滚）。</p>
+     *
+     * @param targetDS 即将切换的目标数据源名称
+     * @param point    切入点信息（用于错误日志）
+     */
+    private void checkTransactionConflict(String targetDS, ProceedingJoinPoint point) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            return; // 没有活跃事务，安全切换
+        }
+
+        String currentDS = JpaPlusContext.currentDS();
+        if (currentDS.equals(targetDS)) {
+            return; // 相同数据源无需担心
+        }
+
+        throw new IllegalStateException(
+                "Cannot switch datasource from '" + currentDS + "' to '" + targetDS +
+                        "' inside an active transaction at [" + point.getSignature().toShortString() + "]. " +
+                        "This would break transaction consistency. Solutions: " +
+                        "(1) Use @Transactional(propagation = Propagation.REQUIRES_NEW) to start a new transaction; " +
+                        "(2) Move the @DS method call outside the transaction; " +
+                        "(3) Integrate distributed transaction (e.g. Seata) via DataSourcePostProcessor."
+        );
     }
 
     /**

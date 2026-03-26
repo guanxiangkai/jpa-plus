@@ -44,6 +44,10 @@ spring-boot-autoconfigure = { group = "org.springframework.boot", name = "spring
 spring-boot-configuration-processor = { group = "org.springframework.boot", name = "spring-boot-configuration-processor" }
 # Spring Boot JDBC（Spring Boot 4.x 模块化：DataSourceAutoConfiguration / DataSourceProperties）
 spring-boot-jdbc = { group = "org.springframework.boot", name = "spring-boot-jdbc" }
+# Spring Boot Actuator（监控端点，可选依赖，版本由 BOM 管理）
+spring-boot-actuator = { group = "org.springframework.boot", name = "spring-boot-actuator" }
+# Spring Boot Health（HealthIndicator / Health，Spring Boot 4.x 从 actuator 拆分出来，版本由 BOM 管理）
+spring-boot-health = { group = "org.springframework.boot", name = "spring-boot-health" }
 
 # ═══════════════════════════ Spring Framework ═══════════════════════════
 # Spring Context（ApplicationEventPublisher 等核心容器能力，版本由 BOM 管理）
@@ -86,8 +90,11 @@ testing = ["spring-boot-starter-test", "junit-jupiter", "junit-platform-launcher
 # Starter 自动装配所需的 Spring Boot 基础设施（implementation 级别）
 spring-boot-infra = ["spring-boot-autoconfigure", "spring-boot-jdbc"]
 
+# 查询模块所需的 ORM / 分页基础设施（compileOnly 级别）
+spring-query = ["hibernate-core", "spring-data-commons"]
+
 # 多数据源路由所需的 Spring 基础设施（compileOnly 级别）
-spring-datasource = ["spring-jdbc", "spring-aop", "aspectjweaver", "spring-context"]
+spring-datasource = ["spring-jdbc", "spring-aop", "aspectjweaver", "spring-context", "spring-boot-actuator", "spring-boot-health"]
 
 
 # ╔═══════════════════════════════════════════════════════════════════════════════════════════════════╗

@@ -6,5 +6,5 @@
  */
 dependencies {
     api(project(":jpa-plus-core"))
-    compileOnly(libs.bundles.spring.datasource)  // AbstractRoutingDataSource / @Aspect / ApplicationContext
+    compileOnly(libs.bundles.spring.datasource)  // AbstractRoutingDataSource / @Aspect / ApplicationContext / HealthIndicator
 }

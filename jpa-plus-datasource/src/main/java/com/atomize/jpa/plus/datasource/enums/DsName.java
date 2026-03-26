@@ -3,7 +3,7 @@ package com.atomize.jpa.plus.datasource.enums;
 /**
  * 数据源名称接口（可扩展枚举模式）
  *
- * <p>内置实现见 {@link DefaultDsName}。
+ * <p>提供内置常量 {@link #MASTER} / {@link #SLAVE}，
  * 用户可自定义 {@code enum} 实现此接口，支持任意数据源名称。</p>
  *
  * <h3>在注解中使用（通过字符串常量）</h3>
@@ -12,9 +12,9 @@ package com.atomize.jpa.plus.datasource.enums;
  * @DS(DsName.SLAVE)
  * }</pre>
  *
- * <h3>在代码中使用（通过枚举实例）</h3>
+ * <h3>在代码中使用</h3>
  * <pre>{@code
- * JpaPlusContext.withDS(DefaultDsName.SLAVE.value(), () -> {
+ * JpaPlusContext.withDS("slave", () -> {
  *     return userRepo.findById(1L);
  * });
  * }</pre>
@@ -25,7 +25,6 @@ package com.atomize.jpa.plus.datasource.enums;
  *     ANALYTICS("analytics"),
  *     REPORTING("reporting");
  *
- *     // 注解用常量
  *     public static final String ANALYTICS_DS = "analytics";
  *     public static final String REPORTING_DS = "reporting";
  *
@@ -34,7 +33,6 @@ package com.atomize.jpa.plus.datasource.enums;
  *     @Override public String value() { return value; }
  * }
  *
- * // 使用
  * @DS(MyDsName.ANALYTICS_DS)
  * }</pre>
  *
@@ -53,4 +51,3 @@ public interface DsName {
      */
     String value();
 }
-

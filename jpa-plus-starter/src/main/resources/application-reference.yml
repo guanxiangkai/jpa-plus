@@ -1,0 +1,314 @@
+# ==============================================================================
+# JPA-Plus 完整配置参考 (application.yml)
+# 使用说明：
+#   - 所有配置项均已列出默认值，实际使用时只需覆盖需要修改的项。
+#   - 带 [!] 的为生产环境强烈建议修改的关键配置。
+#   - 敏感信息（如密码、密钥）务必通过环境变量注入，禁止明文写死。
+#   - 本文件仅供参考，请勿直接复制到生产环境。
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 一、JPA-Plus 核心配置
+# ------------------------------------------------------------------------------
+jpa-plus:
+  # 是否启用 jpa-plus 自动配置（总开关，关闭后所有子模块均不生效）
+  enabled: true
+
+  # ---------- Flush 策略 ----------
+  # AUTO   : Hibernate 默认策略（有脏数据时自动 flush）
+  # ALWAYS : 每次查询前强制 flush
+  # MANUAL : 从不自动 flush，由用户手动控制
+  flush-mode: AUTO
+
+  # ---------- 调试模式（开发环境可开启）----------
+  debug:
+    enabled: false                # 是否输出 SQL 及执行细节
+    print-params: true            # 是否打印 SQL 参数值（enabled=true 时生效）
+    slow-sql:
+      enabled: false              # 是否开启慢 SQL 检测
+      threshold: 1000             # 慢 SQL 阈值（毫秒），超过此值将输出 WARN 日志
+      log-level: WARN             # 慢 SQL 日志级别：WARN / ERROR
+
+  # ---------- ID 生成策略 ----------
+  id-generator:
+    type: AUTO                    # AUTO（数据库自增）/ SNOWFLAKE（雪花算法）/ UUID / CUSTOM
+    snowflake:
+      worker-id: ${SNOWFLAKE_WORKER_ID:1}       # 工作节点 ID（0~31）
+      datacenter-id: ${SNOWFLAKE_DC_ID:1}       # 数据中心 ID（0~31）
+      epoch: 1700000000000        # 自定义纪元（毫秒时间戳，不可在运行中修改）
+
+  # ---------- 分页配置 ----------
+  pagination:
+    default-page-size: 20         # 默认每页大小
+    max-page-size: 500            # [!] 最大每页大小（防止恶意大分页导致 OOM）
+    page-index-from: 0            # 页码起始值：0 或 1（0 = Spring Data 默认风格）
+    count-strategy: SIMPLE        # SIMPLE（普通 COUNT）/ OPTIMIZED（优化，去除不必要的 JOIN 和 ORDER BY）
+    overflow-behavior: EMPTY      # 页码超出范围时的行为：EMPTY（返回空列表）/ LAST_PAGE（返回最后一页）
+
+  # ---------- [!] 字段加密配置 ----------
+  encrypt:
+    enabled: false                # 是否启用字段加密（@EncryptField）
+    algorithm: AES                # 加密算法：AES / AES_GCM / SM4
+    # [!] 密钥必须通过环境变量注入，长度须满足算法要求（AES: 16/24/32 字节）
+    key: "${ENCRYPT_KEY:}"
+    # AES 模式配置
+    aes:
+      mode: CBC                   # AES 模式：ECB / CBC / GCM（推荐 CBC 或 GCM）
+      padding: PKCS5Padding       # 填充方式
+      iv: "${ENCRYPT_IV:}"        # CBC/GCM 模式的初始化向量（16 字节），为空时自动生成
+    # 是否对 null 值跳过加解密
+    skip-null: true
+
+  # ---------- 字典服务配置 ----------
+  dict:
+    enabled: false                # 是否启用字典翻译功能（@DictField）
+    cache-enabled: true           # 是否缓存字典数据
+    cache-ttl: 3600               # 字典缓存过期时间（秒），0 表示永不过期
+    provider: JDBC                # 字典数据提供者：JDBC / CUSTOM（自定义实现 DictProvider 接口）
+    jdbc:
+      enabled: false              # 是否启用内置 JDBC 字典提供者（provider=JDBC 时必须开启）
+      table-name: jpa_plus_dict
+      auto-init-schema: false     # [!] 生产环境建议手动建表，避免自动 DDL 风险
+
+  # ---------- 审计功能 ----------
+  audit:
+    enabled: false                # 是否启用审计（自动填充创建人、修改人、创建时间、修改时间）
+    # 用户信息提供者
+    # SPRING_SECURITY : 从 SecurityContextHolder 获取当前用户
+    # CUSTOM          : 自定义实现 AuditPrincipalProvider 接口
+    principal-provider: SPRING_SECURITY
+    # 审计字段映射（实体中对应的属性名）
+    field:
+      created-by: createdBy
+      updated-by: updatedBy
+      created-time: createdTime
+      updated-time: updatedTime
+    # 时间配置
+    time:
+      use-utc: false              # 是否统一使用 UTC 时间
+      format: "yyyy-MM-dd HH:mm:ss"
+
+  # ---------- 逻辑删除 ----------
+  logic-delete:
+    enabled: false                # 是否启用逻辑删除支持（@LogicDelete）
+    column-name: deleted          # 逻辑删除字段的数据库列名
+    not-deleted-value: 0          # 未删除标记值（支持 0/false/"N"）
+    deleted-value: 1              # 已删除标记值（支持 1/true/"Y"/时间戳）
+    deleted-value-type: INTEGER   # 值类型：INTEGER / BOOLEAN / STRING / TIMESTAMP
+    auto-apply-condition: true    # 是否自动在所有查询中追加逻辑删除条件
+    ignore-tables: [ ]             # 不应用逻辑删除的表名列表
+
+  # ---------- 多租户 ----------
+  multi-tenancy:
+    enabled: false                # 是否启用多租户支持
+    # 租户隔离模式
+    # COLUMN      : 共享数据库、共享 Schema、按列隔离（最常用）
+    # SCHEMA      : 共享数据库、按 Schema 隔离
+    # DATASOURCE  : 按数据源隔离
+    mode: COLUMN
+    # 租户 ID 解析方式
+    resolver: HEADER              # HEADER / JWT_CLAIM / CUSTOM
+    header-name: X-Tenant-Id      # resolver=HEADER 时的请求头名称
+    jwt-claim-key: tenant_id      # resolver=JWT_CLAIM 时的 claim 名称
+    # COLUMN 模式配置
+    column:
+      name: tenant_id             # 租户字段的数据库列名
+      type: STRING                # 字段类型：STRING / LONG / INTEGER
+    # 忽略租户过滤的表（如：系统级公共数据表）
+    ignore-tables:
+      - jpa_plus_dict
+    # 默认租户 ID（无法获取租户信息时使用，为空则抛异常）
+    default-tenant-id: ""
+
+  # ---------- 数据权限 ----------
+  data-permission:
+    enabled: false                # 是否启用数据权限（@DataPermission）
+    # 权限提供者：自定义实现 DataPermissionProvider 接口
+    # 框架会自动在查询中追加权限条件 SQL
+
+  # ---------- 字段填充（自动赋值）----------
+  auto-fill:
+    enabled: false                # 是否启用字段自动填充（@AutoFill）
+    # 在 INSERT 和 UPDATE 时自动给指定字段赋值（由自定义 AutoFillHandler 提供值）
+
+  # ---------- 缓存管理 ----------
+  cache:
+    # 二级缓存
+    second-level:
+      enabled: false              # 是否启用 Hibernate 二级缓存
+      provider: JCACHE            # 缓存实现：JCACHE / EHCACHE / REDIS / CAFFEINE
+    # 查询缓存
+    query-cache:
+      enabled: false              # 是否启用查询缓存（仅在 second-level.enabled=true 时生效）
+
+  # ---------- 批处理配置 ----------
+  batch:
+    size: 500                     # saveBatch / updateBatch 默认分批大小
+    max-size: 10000               # [!] 单次批处理最大条数限制（超过将分段执行）
+
+# ------------------------------------------------------------------------------
+# 二、Spring 相关配置（数据源 + JPA）
+# 注意：spring 键只能出现一次，以下合并了数据源和 JPA 配置
+# ------------------------------------------------------------------------------
+spring:
+  # ----------------------------------------------------------------------------
+  # 2.1 动态多数据源配置（前缀：spring.datasource.dynamic）
+  # 激活条件：spring.datasource.dynamic.datasource 中至少配置了一个数据源
+  # 激活后：DynamicRoutingDataSource 作为 @Primary DataSource
+  # ----------------------------------------------------------------------------
+  datasource:
+    dynamic:
+      # [!] 基础配置
+      primary: master             # 默认数据源名称（必须在 datasource 中存在）
+      strict: true                # [!] 严格模式：路由 key 不存在时抛异常（生产环境必须为 true）
+      lazy: false                 # 是否懒加载数据源（启动时不初始化，首次使用时创建）
+
+      # ---------- 路由策略 ----------
+      routing:
+        # 数据源选择策略
+        # ANNOTATION : 通过 @DS("xxx") 注解指定
+        # THREAD_LOCAL : 通过 DynamicDataSourceContextHolder 手动切换
+        # HEADER : 从 HTTP 请求头获取
+        strategy: ANNOTATION
+        header-name: X-DS          # strategy=HEADER 时的请求头名称
+
+      # [!] 全局连接池配置（HikariCP）
+      # 所有数据源共享此默认值，各数据源可通过自己的 hikari 节点覆盖
+      hikari:
+        maximum-pool-size: 10     # 最大连接数（建议根据实际负载调整，参考公式：CPU核数 * 2 + 磁盘数）
+        minimum-idle: 5           # 最小空闲连接数（适度小于 maximum-pool-size，在低峰期释放资源）
+        connection-timeout: 30000 # 获取连接超时（毫秒）
+        idle-timeout: 600000      # 空闲连接存活时间（毫秒，minimum-idle < maximum-pool-size 时生效）
+        max-lifetime: 1800000     # 连接最大存活时间（毫秒，建议小于数据库 wait_timeout）
+        validation-timeout: 5000  # 连接校验超时（毫秒）
+        pool-name: JpaPlusHikariCP
+        # 不设置全局 connection-test-query，框架根据 DatabaseType 自动推导
+        leak-detection-threshold: 0        # 连接泄漏检测阈值（毫秒），开发环境建议设为 60000，生产环境按需
+        register-mbeans: false             # JMX MBean，生产容器化部署通常不需要
+
+      # [!] 数据源列表
+      # 框架根据 JDBC URL 自动检测 DatabaseType 及 Driver，无需手动指定 driver-class-name
+      datasource:
+        # 主库（MySQL 示例）
+        master:
+          url: ${DB_MASTER_URL:jdbc:mysql://localhost:3306/master_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8mb4&allowPublicKeyRetrieval=true}
+          username: ${DB_MASTER_USER:root}
+          password: ${DB_MASTER_PWD:}
+          hikari:
+            maximum-pool-size: 20
+            minimum-idle: 10      # 主库高频写入，保留较多空闲连接
+
+        # 从库 1（MySQL 示例）
+        slave_1:
+          url: ${DB_SLAVE1_URL:jdbc:mysql://localhost:3306/slave1_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8mb4&allowPublicKeyRetrieval=true}
+          username: ${DB_SLAVE1_USER:root}
+          password: ${DB_SLAVE1_PWD:}
+          # 未配置 hikari 则继承全局配置
+
+        # PostgreSQL 库（示例）
+        # pg_db:
+        #   url: ${DB_PG_URL:jdbc:postgresql://localhost:5432/pg_db}
+        #   username: ${DB_PG_USER:postgres}
+        #   password: ${DB_PG_PWD:}
+
+      # ---------- 动态刷新监控（配合配置中心）----------
+      refresh:
+        enabled: false            # 是否开启定时刷新监控
+        interval: 30s             # 轮询间隔（支持 Duration：30s / 1m / PT30S，最小值 10s）
+        reset-pool: true          # 刷新时是否重置连接池（graceful shutdown 后重建）
+
+      # ---------- 从数据库表加载数据源（可选）----------
+      jdbc:
+        enabled: false            # 是否启用 JDBC 配置表提供者
+        table-name: jpa_plus_datasource
+        auto-init-schema: false   # [!] 生产环境手动建表
+
+
+      # ---------- 健康检查 ----------
+      health:
+        enabled: true             # 是否暴露数据源健康检查（配合 Spring Boot Actuator）
+        include-detail: true      # 是否在健康信息中包含各数据源详情
+
+  # ----------------------------------------------------------------------------
+  # 2.2 JPA 全局配置
+  # 注意：使用动态多数据源时，不要写死 hibernate.dialect，
+  #       让 Hibernate 根据 JDBC Connection 自动检测方言。
+  # ----------------------------------------------------------------------------
+  jpa:
+    open-in-view: false           # [!] 生产环境必须 false，避免 LazyLoad 导致长事务和连接泄漏
+    properties:
+      hibernate:
+        # 不要配置 dialect，让 Hibernate 自动选择
+        hbm2ddl:
+          auto: validate          # [!] 生产环境：validate 或 none；开发环境可用 update
+        show_sql: false           # 生产环境 false，调试用 jpa-plus.debug
+        format_sql: true
+
+        # ---------- 批处理优化 ----------
+        jdbc:
+          batch_size: 50          # 批处理大小（建议 30~100，配合 jpa-plus.batch.size 使用）
+          time_zone: Asia/Shanghai  # 统一 JDBC 时区，与数据库保持一致
+
+        order_inserts: true       # 对插入语句排序，提升批处理效率
+        order_updates: true       # 对更新语句排序
+
+        # ---------- 二级缓存（由 jpa-plus.cache 统一管理，此处自动联动）----------
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+          # region.factory_class 由框架根据 jpa-plus.cache.second-level.provider 自动配置
+
+        # ---------- 统计信息（性能调优时临时开启）----------
+        generate_statistics: false
+
+        # ---------- 默认 Schema（可选）----------
+        # default_schema: public
+
+# ------------------------------------------------------------------------------
+# 三、多数据源事务配置说明（非配置项，仅为指导）
+# ------------------------------------------------------------------------------
+# 1. 单数据源事务（默认）：
+#    使用 @Transactional 即可，默认绑定 primary 数据源的事务管理器。
+#
+# 2. 多数据源事务（跨库）：
+#    方案一：Seata AT 模式（推荐），配置 spring.datasource.dynamic.seata.enabled=true
+#    方案二：JTA（如 Atomikos），需额外引入依赖
+#    方案三：编程式事务，手动管理多个 PlatformTransactionManager
+#
+# 3. 事务管理器命名规则（框架自动注册）：
+#    主数据源 : transactionManager
+#    其他数据源 : {name}TransactionManager（如 slave_1TransactionManager）
+#
+# 示例：
+#   @Transactional("slave_1TransactionManager")
+#   public void readFromSlave() { ... }
+
+# ------------------------------------------------------------------------------
+# 四、日志配置
+# ------------------------------------------------------------------------------
+logging:
+  level:
+    com.atomize.jpa.plus: INFO
+    # 调试时按需开启：
+    # com.atomize.jpa.plus.datasource: DEBUG    # 数据源路由
+    # com.atomize.jpa.plus.query: DEBUG         # SQL 查询
+    # com.atomize.jpa.plus.encrypt: DEBUG       # 字段加解密
+    # com.atomize.jpa.plus.audit: DEBUG         # 审计字段填充
+    # com.atomize.jpa.plus.tenant: DEBUG        # 多租户过滤
+    # com.zaxxer.hikari: DEBUG                  # HikariCP 连接池
+    # org.hibernate.SQL: DEBUG                  # Hibernate SQL（等同于 show_sql）
+    # org.hibernate.type.descriptor.sql: TRACE  # SQL 参数绑定值
+    # org.springframework.transaction: DEBUG    # Spring 事务
+
+# ------------------------------------------------------------------------------
+# 五、Actuator 监控端点
+# ------------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics    # 按需暴露，生产环境不要用 *
+  endpoint:
+    health:
+      show-details: when-authorized     # [!] 生产环境用 when-authorized 或 never，不要用 always
+

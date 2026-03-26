@@ -4,7 +4,8 @@ import com.atomize.jpa.plus.datasource.creator.DataSourceCreator;
 import com.atomize.jpa.plus.datasource.model.DataSourceDefinition;
 import com.atomize.jpa.plus.datasource.provider.DataSourceProvider;
 import com.atomize.jpa.plus.datasource.routing.DynamicRoutingDataSource;
-import lombok.Setter;
+import com.atomize.jpa.plus.datasource.spi.DataSourcePostProcessor;
+import com.atomize.jpa.plus.datasource.tx.DynamicTransactionManager;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
@@ -16,13 +17,14 @@ import java.util.stream.Collectors;
 /**
  * 动态数据源注册中心
  *
- * <p>管理所有数据源的生命周期。通过 {@link DataSourceProvider} 获取用户提供的配置列表，
- * 结合 {@link DataSourceCreator} 创建实例，变更后自动同步到 {@link DynamicRoutingDataSource}。</p>
+ * <p>管理所有数据源的生命周期。通过 {@link DataSourceProvider} 获取配置列表，
+ * 结合 {@link DataSourceCreator} 创建实例，经 {@link DataSourcePostProcessor} 链处理后，
+ * 自动同步到 {@link DynamicRoutingDataSource} 和 {@link DynamicTransactionManager}。</p>
  *
  * <h3>核心能力</h3>
  * <ul>
- *   <li>{@link #init()} —— 启动时从 Provider 加载全部数据源</li>
- *   <li>{@link #reload()} —— 配置变更时从 Provider 重新加载，差异化刷新（新增/更新/移除）</li>
+ *   <li>{@link #init()} —— 启动时从 Provider 加载全部数据源（含 primary）</li>
+ *   <li>{@link #reload()} —— 配置变更时差异化刷新（新增/更新/移除）</li>
  *   <li>{@link #add(DataSourceDefinition)} —— 运行时手动注册</li>
  *   <li>{@link #remove(String)} —— 运行时手动移除</li>
  *   <li>{@link #names()} —— 查看已注册的数据源名称</li>
@@ -39,6 +41,17 @@ public class DynamicDataSourceRegistry {
     private final DynamicRoutingDataSource routingDataSource;
     private final DataSourceCreator creator;
     private final DataSourceProvider provider;
+    private final String primaryName;
+
+    /**
+     * 数据源后置处理器链（Seata 代理、监控包装等）
+     */
+    private final List<DataSourcePostProcessor> postProcessors;
+
+    /**
+     * 动态事务管理器（可选，为 null 时不联动事务管理器）
+     */
+    private final DynamicTransactionManager transactionManager;
 
     /**
      * 活跃数据源注册表
@@ -47,49 +60,57 @@ public class DynamicDataSourceRegistry {
 
     /**
      * 数据源定义快照（用于 reload 时判断配置是否变更）
-     *
-     * <p>注意：通过 {@link #setPrimaryDataSource(DataSource)} 注册的主数据源
-     * 不在此快照中，因此 {@link #reload()} 不会移除或修改主数据源。</p>
      */
     private final Map<String, DataSourceDefinition> definitionMap = new ConcurrentHashMap<>();
 
     /**
-     * 预注册的主数据源（来自 Spring Boot {@code spring.datasource.*} 配置）
-     * -- SETTER --
-     * 设置预注册的主数据源
-     * <p>此数据源将作为 "master" 注册到路由表中，不受 Provider 管理。
-     * 适用于主数据源由 Spring Boot 自动配置的场景。</p>
+     * 全参构造器
      *
+     * @param routingDataSource  路由数据源
+     * @param creator            数据源创建器
+     * @param provider           数据源配置提供者
+     * @param postProcessors     后置处理器链（可为空列表）
+     * @param transactionManager 动态事务管理器（可为 null）
      */
-    @Setter
-    private DataSource primaryDataSource;
-
     public DynamicDataSourceRegistry(DynamicRoutingDataSource routingDataSource,
                                      DataSourceCreator creator,
-                                     DataSourceProvider provider) {
+                                     DataSourceProvider provider,
+                                     List<DataSourcePostProcessor> postProcessors,
+                                     DynamicTransactionManager transactionManager) {
         this.routingDataSource = Objects.requireNonNull(routingDataSource);
         this.creator = Objects.requireNonNull(creator);
         this.provider = Objects.requireNonNull(provider);
+        this.primaryName = routingDataSource.getPrimaryName();
+        this.postProcessors = postProcessors != null ? List.copyOf(postProcessors) : List.of();
+        this.transactionManager = transactionManager;
     }
 
     /**
-     * 初始化 —— 注册主数据源 + 从 Provider 加载额外数据源（启动时调用）
+     * 向后兼容的三参数构造器（无后置处理器、无事务管理器）
+     */
+    public DynamicDataSourceRegistry(DynamicRoutingDataSource routingDataSource,
+                                     DataSourceCreator creator,
+                                     DataSourceProvider provider) {
+        this(routingDataSource, creator, provider, List.of(), null);
+    }
+
+    /**
+     * 初始化 —— 从 Provider 加载全部数据源（启动时调用）
      */
     public synchronized void init() {
-        // ① 预注册主数据源（不在 definitionMap 中，reload 时不会被移除）
-        if (primaryDataSource != null && !dataSourceMap.containsKey(DynamicRoutingDataSource.MASTER)) {
-            dataSourceMap.put(DynamicRoutingDataSource.MASTER, primaryDataSource);
-            log.debug("Primary datasource pre-registered as '{}'", DynamicRoutingDataSource.MASTER);
-        }
-
-        // ② 从 Provider 加载额外数据源
         List<DataSourceDefinition> definitions = provider.provide();
         for (DataSourceDefinition def : definitions) {
-            DataSource ds = creator.createDataSource(def);
+            DataSource ds = createAndPostProcess(def);
             dataSourceMap.put(def.name(), ds);
             definitionMap.put(def.name(), def);
+            registerTxManager(def.name(), ds);
         }
         syncToRouting();
+
+        if (!dataSourceMap.containsKey(primaryName)) {
+            log.warn("Primary datasource '{}' not found in provider definitions! Available: {}",
+                    primaryName, dataSourceMap.keySet());
+        }
         log.info("DataSource registry initialized: {}", dataSourceMap.keySet());
     }
 
@@ -109,16 +130,18 @@ public class DynamicDataSourceRegistry {
         Map<String, DataSourceDefinition> latestMap = latest.stream()
                 .collect(Collectors.toMap(DataSourceDefinition::name, d -> d));
 
+        boolean changed = false;
+
         // ① 新增 / 更新
         for (DataSourceDefinition def : latest) {
             DataSourceDefinition existing = definitionMap.get(def.name());
             if (existing == null) {
-                // 新增
                 doAdd(def);
+                changed = true;
                 log.info("DataSource '{}' added → {}", def.name(), def.url());
             } else if (!existing.equals(def)) {
-                // 配置变更 → 刷新
                 doRefresh(def);
+                changed = true;
                 log.info("DataSource '{}' refreshed → {}", def.name(), def.url());
             }
         }
@@ -128,11 +151,16 @@ public class DynamicDataSourceRegistry {
         toRemove.removeAll(latestMap.keySet());
         for (String name : toRemove) {
             doRemove(name);
+            changed = true;
             log.info("DataSource '{}' removed (no longer provided)", name);
         }
 
-        syncToRouting();
-        log.info("DataSource reload complete: {}", dataSourceMap.keySet());
+        if (changed) {
+            syncToRouting();
+            log.info("DataSource reload complete: {}", dataSourceMap.keySet());
+        } else {
+            log.debug("DataSource reload: no changes detected");
+        }
     }
 
     /**
@@ -153,8 +181,8 @@ public class DynamicDataSourceRegistry {
      * 手动移除数据源
      */
     public synchronized void remove(String name) {
-        if (DynamicRoutingDataSource.MASTER.equals(name)) {
-            throw new IllegalArgumentException("Cannot remove master datasource");
+        if (primaryName.equals(name)) {
+            throw new IllegalArgumentException("Cannot remove primary datasource '" + primaryName + "'");
         }
         doRemove(name);
         syncToRouting();
@@ -187,17 +215,32 @@ public class DynamicDataSourceRegistry {
 
     // ─── 内部方法 ───
 
-    private void doAdd(DataSourceDefinition def) {
+    /**
+     * 创建数据源并经过后置处理器链处理
+     */
+    private DataSource createAndPostProcess(DataSourceDefinition def) {
         DataSource ds = creator.createDataSource(def);
+        for (DataSourcePostProcessor processor : postProcessors) {
+            ds = processor.postProcess(ds, def.name());
+            Objects.requireNonNull(ds,
+                    "DataSourcePostProcessor returned null for datasource '" + def.name() + "'");
+        }
+        return ds;
+    }
+
+    private void doAdd(DataSourceDefinition def) {
+        DataSource ds = createAndPostProcess(def);
         dataSourceMap.put(def.name(), ds);
         definitionMap.put(def.name(), def);
+        registerTxManager(def.name(), ds);
     }
 
     private void doRefresh(DataSourceDefinition def) {
         DataSource old = dataSourceMap.get(def.name());
-        DataSource newDs = creator.createDataSource(def);
+        DataSource newDs = createAndPostProcess(def);
         dataSourceMap.put(def.name(), newDs);
         definitionMap.put(def.name(), def);
+        registerTxManager(def.name(), newDs);
         // 新数据源就绪后再关闭旧的，减少不可用窗口
         if (old != null) {
             closeQuietly(old);
@@ -207,8 +250,17 @@ public class DynamicDataSourceRegistry {
     private void doRemove(String name) {
         DataSource removed = dataSourceMap.remove(name);
         definitionMap.remove(name);
+        if (transactionManager != null) {
+            transactionManager.removeDataSource(name);
+        }
         if (removed != null) {
             closeQuietly(removed);
+        }
+    }
+
+    private void registerTxManager(String name, DataSource ds) {
+        if (transactionManager != null) {
+            transactionManager.registerDataSource(name, ds);
         }
     }
 
@@ -216,9 +268,9 @@ public class DynamicDataSourceRegistry {
         Map<Object, Object> targetMap = new HashMap<>(dataSourceMap);
         routingDataSource.setTargetDataSources(targetMap);
 
-        DataSource master = dataSourceMap.get(DynamicRoutingDataSource.MASTER);
-        if (master != null) {
-            routingDataSource.setDefaultTargetDataSource(master);
+        DataSource primary = dataSourceMap.get(primaryName);
+        if (primary != null) {
+            routingDataSource.setDefaultTargetDataSource(primary);
         }
 
         routingDataSource.initialize();

@@ -2,28 +2,31 @@ package com.atomize.jpa.plus.starter;
 
 import com.atomize.jpa.plus.datasource.aop.DSAspect;
 import com.atomize.jpa.plus.datasource.creator.DataSourceCreator;
+import com.atomize.jpa.plus.datasource.health.DynamicDataSourceHealthIndicator;
 import com.atomize.jpa.plus.datasource.listener.DataSourceRefreshListener;
 import com.atomize.jpa.plus.datasource.provider.DataSourceProvider;
-import com.atomize.jpa.plus.datasource.provider.JdbcDataSourceProvider;
 import com.atomize.jpa.plus.datasource.refresh.DataSourceRefresher;
 import com.atomize.jpa.plus.datasource.refresh.ScheduledDataSourceRefresher;
 import com.atomize.jpa.plus.datasource.registry.DynamicDataSourceRegistry;
 import com.atomize.jpa.plus.datasource.routing.DynamicRoutingDataSource;
+import com.atomize.jpa.plus.datasource.spi.DataSourcePostProcessor;
+import com.atomize.jpa.plus.datasource.tx.DynamicTransactionManager;
 import com.atomize.jpa.plus.starter.creator.HikariDataSourceCreator;
-import com.zaxxer.hikari.HikariDataSource;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.atomize.jpa.plus.starter.provider.EnvironmentDataSourceProvider;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.util.List;
 
 /**
  * JPA-Plus 动态数据源自动装配
@@ -31,81 +34,69 @@ import javax.sql.DataSource;
  * <p>当满足以下条件时自动激活：
  * <ul>
  *   <li>{@link DynamicRoutingDataSource} 类在 classpath 上（jpa-plus-datasource 模块已引入）</li>
- *   <li>{@code jpa-plus.datasource.dynamic.enabled=true}（显式开启）</li>
+ *   <li>{@code spring.datasource.dynamic.datasource} 中至少配置了一个数据源</li>
  * </ul>
  * </p>
  *
- * <h3>自动注册的 Bean</h3>
- * <table>
- *   <tr><th>Bean</th><th>说明</th><th>覆盖方式</th></tr>
- *   <tr><td>{@link DataSourceCreator}</td><td>HikariCP 数据源创建器</td><td>用户自定义 Bean</td></tr>
- *   <tr><td>{@link DataSourceProvider}</td><td>JDBC 配置表读取器</td><td>用户自定义 Bean</td></tr>
- *   <tr><td>{@link DynamicRoutingDataSource}</td><td>路由数据源</td><td>—</td></tr>
- *   <tr><td>{@link DynamicDataSourceRegistry}</td><td>数据源注册中心</td><td>—</td></tr>
- *   <tr><td>{@link DataSourceRefreshListener}</td><td>事件监听刷新器</td><td>用户自定义 Bean</td></tr>
- *   <tr><td>{@link DSAspect}</td><td>@DS 注解切面</td><td>用户自定义 Bean</td></tr>
- *   <tr><td>{@link DataSourceRefresher}</td><td>编程式刷新门面</td><td>用户自定义 Bean</td></tr>
- *   <tr><td>{@link ScheduledDataSourceRefresher}</td><td>定时刷新器（需开启）</td><td>—</td></tr>
- * </table>
- *
  * <h3>配置示例</h3>
  * <pre>{@code
- * # 标准 Spring Boot 主数据源配置（作为 master）
  * spring:
  *   datasource:
- *     url: jdbc:mysql://localhost:3306/mydb
- *     username: root
- *     password: password
- *
- * # JPA-Plus 动态数据源配置
- * jpa-plus:
- *   datasource:
  *     dynamic:
- *       enabled: true
- *       table-name: jpa_plus_datasource
- *       auto-init-schema: true
- *       schedule:
- *         enabled: false
+ *       primary: master
+ *       strict: true
+ *       hikari:
+ *         maximum-pool-size: 10
+ *         minimum-idle: 5
+ *         connection-timeout: 30000
+ *         idle-timeout: 600000
+ *         max-lifetime: 1800000
+ *       datasource:
+ *         master:
+ *           url: jdbc:mysql://localhost:3306/master_db
+ *           username: root
+ *           password: root
+ *         slave_1:
+ *           url: jdbc:mysql://localhost:3306/slave1_db
+ *           username: root
+ *           password: root
+ *         pg_db:
+ *           url: jdbc:postgresql://localhost:5432/pg_db
+ *           username: postgres
+ *           password: postgres
+ *       refresh:
+ *         enabled: true
  *         interval: 30s
+ *         reset-pool: true
+ *       jdbc:
+ *         enabled: false
+ *         table-name: jpa_plus_datasource
  * }</pre>
  *
  * <h3>工作流程</h3>
  * <ol>
- *   <li>从 {@code spring.datasource.*} 创建主（master）HikariDataSource</li>
- *   <li>{@link JdbcDataSourceProvider} 使用主数据源连接配置表，读取额外数据源定义</li>
- *   <li>{@link DynamicDataSourceRegistry} 注册 master + 额外数据源到路由表</li>
- *   <li>{@link DynamicRoutingDataSource} 作为 {@code @Primary DataSource}，替代 Spring Boot 默认数据源</li>
- *   <li>JPA / Hibernate 透明使用路由数据源</li>
+ *   <li>从 {@code spring.datasource.dynamic.datasource.*} 读取所有数据源配置</li>
+ *   <li>根据 JDBC URL 自动检测 {@link com.atomize.jpa.plus.datasource.enums.DatabaseType}</li>
+ *   <li>全局 HikariCP 配置作为默认值，各数据源可单独覆盖</li>
+ *   <li>{@link DynamicDataSourceRegistry} 创建并注册所有数据源，经 {@link DataSourcePostProcessor} 链处理</li>
+ *   <li>{@link DynamicRoutingDataSource} 作为 {@code @Primary DataSource}</li>
+ *   <li>{@link DynamicTransactionManager} 根据 {@code @DS} 上下文自动路由事务</li>
+ *   <li>定时刷新 / 事件驱动刷新自动检测配置变更</li>
  * </ol>
  *
+ * <h3>扩展点</h3>
+ * <p>用户注册任意数量的 {@link DataSourcePostProcessor} Bean 即可在数据源创建后进行包装，
+ * 典型场景如 Seata 分布式事务代理 —— 按数据源名称、类型等条件灵活决定是否代理。</p>
+ *
  * @author guanxiangkai
- * @see JpaPlusAutoConfiguration
+ * @see DynamicDataSourceProperties
  * @since 2026年03月25日 星期三
  */
 @AutoConfiguration(before = DataSourceAutoConfiguration.class)
 @ConditionalOnClass(DynamicRoutingDataSource.class)
-@ConditionalOnProperty(prefix = "jpa-plus.datasource.dynamic", name = "enabled", havingValue = "true")
-@EnableConfigurationProperties({JpaPlusProperties.class, DataSourceProperties.class})
+@ConditionalOnProperty(prefix = "spring.datasource.dynamic", name = "datasource")
+@EnableConfigurationProperties(DynamicDataSourceProperties.class)
 public class JpaPlusDataSourceAutoConfiguration {
-
-    // ─────────── 主数据源（从 spring.datasource.* 创建） ───────────
-
-    /**
-     * 使用 Spring Boot 的 {@link DataSourceProperties} 创建主数据源（HikariCP）
-     *
-     * <p>此 Bean 作为 master 数据源注册到路由表中，同时供 {@link JdbcDataSourceProvider}
-     * 查询配置表使用。{@code @ConfigurationProperties(prefix = "spring.datasource.hikari")}
-     * 确保 HikariCP 特有属性（如 {@code maximum-pool-size}）也被正确绑定。</p>
-     */
-    @Bean("jpaPlusMasterDataSource")
-    @ConfigurationProperties(prefix = "spring.datasource.hikari")
-    public HikariDataSource masterDataSource(DataSourceProperties properties) {
-        HikariDataSource ds = properties.initializeDataSourceBuilder()
-                .type(HikariDataSource.class)
-                .build();
-        ds.setPoolName("jpa-plus-master");
-        return ds;
-    }
 
     // ─────────── 数据源创建器 ───────────
 
@@ -115,23 +106,43 @@ public class JpaPlusDataSourceAutoConfiguration {
         return new HikariDataSourceCreator();
     }
 
-    // ─────────── 数据源配置提供者 ───────────
+    // ─────────── YAML 数据源提供者 ───────────
+
+    @Bean
+    @ConditionalOnMissingBean(name = "environmentDataSourceProvider")
+    public EnvironmentDataSourceProvider environmentDataSourceProvider(Environment environment) {
+        return new EnvironmentDataSourceProvider(environment);
+    }
+
+    // ─────────── 数据源提供者 ───────────
 
     @Bean
     @ConditionalOnMissingBean(DataSourceProvider.class)
-    public JdbcDataSourceProvider jdbcDataSourceProvider(
-            @Qualifier("jpaPlusMasterDataSource") DataSource masterDataSource,
-            JpaPlusProperties properties) {
-        var config = properties.getDatasource().getDynamic();
-        return new JdbcDataSourceProvider(masterDataSource, config.getTableName(), config.isAutoInitSchema());
+    public DataSourceProvider dataSourceProvider(EnvironmentDataSourceProvider envProvider) {
+        return envProvider;
     }
 
     // ─────────── 路由数据源 ───────────
 
     @Bean
     @ConditionalOnMissingBean
-    public DynamicRoutingDataSource dynamicRoutingDataSource() {
-        return new DynamicRoutingDataSource();
+    public DynamicRoutingDataSource dynamicRoutingDataSource(DynamicDataSourceProperties properties) {
+        return new DynamicRoutingDataSource(properties.getPrimary(), properties.isStrict());
+    }
+
+    // ─────────── 动态事务管理器 ───────────
+
+    @Bean
+    @ConditionalOnMissingBean(DynamicTransactionManager.class)
+    public DynamicTransactionManager dynamicTransactionManager(DynamicDataSourceProperties properties) {
+        return new DynamicTransactionManager(properties.getPrimary());
+    }
+
+    @Bean
+    @Primary
+    @ConditionalOnMissingBean(name = "transactionManager")
+    public PlatformTransactionManager transactionManager(DynamicTransactionManager dynamicTransactionManager) {
+        return dynamicTransactionManager;
     }
 
     // ─────────── 数据源注册中心 ───────────
@@ -142,21 +153,17 @@ public class JpaPlusDataSourceAutoConfiguration {
             DynamicRoutingDataSource routingDataSource,
             DataSourceCreator creator,
             DataSourceProvider provider,
-            @Qualifier("jpaPlusMasterDataSource") DataSource masterDataSource) {
-        var registry = new DynamicDataSourceRegistry(routingDataSource, creator, provider);
-        registry.setPrimaryDataSource(masterDataSource);
+            ObjectProvider<DataSourcePostProcessor> postProcessors,
+            DynamicTransactionManager dynamicTransactionManager) {
+        List<DataSourcePostProcessor> processorList = postProcessors.orderedStream().toList();
+        var registry = new DynamicDataSourceRegistry(
+                routingDataSource, creator, provider, processorList, dynamicTransactionManager);
         registry.init();
         return registry;
     }
 
     // ─────────── @Primary 数据源（替代 Spring Boot 默认） ───────────
 
-    /**
-     * 将路由数据源暴露为 {@code @Primary DataSource}
-     *
-     * <p>注入 {@link DynamicDataSourceRegistry} 参数确保注册中心已完成初始化，
-     * 路由数据源的目标映射已就绪。</p>
-     */
     @Bean
     @Primary
     public DataSource dataSource(DynamicDataSourceRegistry registry,
@@ -191,13 +198,25 @@ public class JpaPlusDataSourceAutoConfiguration {
     // ─────────── 定时刷新 ───────────
 
     @Bean
-    @ConditionalOnProperty(prefix = "jpa-plus.datasource.dynamic.schedule", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "spring.datasource.dynamic.refresh", name = "enabled", havingValue = "true")
     @ConditionalOnMissingBean
     public ScheduledDataSourceRefresher scheduledDataSourceRefresher(
             DataSourceRefresher refresher,
-            JpaPlusProperties properties) {
-        var interval = properties.getDatasource().getDynamic().getSchedule().getInterval();
-        return new ScheduledDataSourceRefresher(refresher, interval);
+            DynamicDataSourceProperties properties) {
+        return new ScheduledDataSourceRefresher(refresher, properties.getRefresh().getInterval());
+    }
+
+    // ─────────── 健康检查 ───────────
+
+    @Bean
+    @ConditionalOnProperty(prefix = "spring.datasource.dynamic.health", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    @ConditionalOnClass(name = "org.springframework.boot.health.contributor.HealthIndicator")
+    @ConditionalOnMissingBean
+    public DynamicDataSourceHealthIndicator dynamicDataSourceHealthIndicator(
+            DynamicDataSourceRegistry registry,
+            DynamicDataSourceProperties properties) {
+        return new DynamicDataSourceHealthIndicator(registry, properties.getHealth().isIncludeDetail());
     }
 }
 

@@ -65,7 +65,6 @@ public final class JpaPlusContext {
                 } catch (Exception e) {
                     throw e;
                 } catch (Throwable t) {
-                    // 将 Throwable 包装为 RuntimeException 透传出 ScopedValue.call()
                     throw new ThrowableWrapper(t);
                 }
             });
@@ -75,12 +74,22 @@ public final class JpaPlusContext {
     }
 
     /**
-     * 获取当前数据源名称
+     * 获取当前数据源名称（使用默认 primary="master"）
      *
      * @return 数据源名称，默认返回 "master"
      */
     public static String currentDS() {
         return CURRENT_DS.orElse(DsName.MASTER);
+    }
+
+    /**
+     * 获取当前数据源名称（使用指定的 primary 名称作为默认值）
+     *
+     * @param defaultName 无绑定时的默认数据源名称
+     * @return 数据源名称
+     */
+    public static String currentDS(String defaultName) {
+        return CURRENT_DS.orElse(defaultName);
     }
 
     /**

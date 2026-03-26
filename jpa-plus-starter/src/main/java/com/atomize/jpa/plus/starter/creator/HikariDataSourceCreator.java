@@ -11,16 +11,21 @@ import javax.sql.DataSource;
 /**
  * 基于 HikariCP 的数据源创建器
  *
- * <p>根据 {@link DataSourceDefinition} 创建 {@link HikariDataSource} 实例。
- * HikariCP 是 Spring Boot 默认的连接池实现，具备极高性能和可靠性。</p>
+ * <p>根据 {@link DataSourceDefinition} 创建 {@link HikariDataSource} 实例，
+ * 完整映射所有连接池参数。HikariCP 是 Spring Boot 默认的连接池实现，具备极高性能和可靠性。</p>
  *
- * <h3>连接池参数</h3>
+ * <h3>参数映射</h3>
  * <ul>
- *   <li>{@code minimumIdle} —— 最小空闲连接数（来自 {@link DataSourceDefinition#minIdle()}）</li>
- *   <li>{@code maximumPoolSize} —— 最大连接池大小（来自 {@link DataSourceDefinition#maxPoolSize()}）</li>
- *   <li>{@code connectionTimeout} —— 连接超时毫秒（来自 {@link DataSourceDefinition#connectionTimeout()}）</li>
- *   <li>{@code connectionTestQuery} —— 连接校验 SQL（来自 {@link DataSourceDefinition#validationQuery()}）</li>
- *   <li>{@code poolName} —— 连接池名称（格式：{@code jpa-plus-{name}}）</li>
+ *   <li>{@code jdbcUrl} ← {@link DataSourceDefinition#url()}</li>
+ *   <li>{@code username / password} ← 同名字段</li>
+ *   <li>{@code driverClassName} ← {@link DataSourceDefinition#driverClassName()}（可自动检测）</li>
+ *   <li>{@code minimumIdle} ← {@link DataSourceDefinition#minimumIdle()}</li>
+ *   <li>{@code maximumPoolSize} ← {@link DataSourceDefinition#maximumPoolSize()}</li>
+ *   <li>{@code connectionTimeout} ← {@link DataSourceDefinition#connectionTimeout()}</li>
+ *   <li>{@code idleTimeout} ← {@link DataSourceDefinition#idleTimeout()}</li>
+ *   <li>{@code maxLifetime} ← {@link DataSourceDefinition#maxLifetime()}</li>
+ *   <li>{@code poolName} ← {@link DataSourceDefinition#poolName()}</li>
+ *   <li>{@code connectionTestQuery} ← {@link DataSourceDefinition#connectionTestQuery()}</li>
  * </ul>
  *
  * <p>用户可通过实现 {@link DataSourceCreator} 接口替换为 Druid / DBCP2 等其他连接池。</p>
@@ -41,15 +46,41 @@ public class HikariDataSourceCreator implements DataSourceCreator {
         config.setJdbcUrl(definition.url());
         config.setUsername(definition.username());
         config.setPassword(definition.password());
-        config.setDriverClassName(definition.driverClassName());
-        config.setMinimumIdle(definition.minIdle());
-        config.setMaximumPoolSize(definition.maxPoolSize());
-        config.setConnectionTimeout(definition.connectionTimeout());
-        config.setConnectionTestQuery(definition.validationQuery());
-        config.setPoolName("jpa-plus-" + definition.name());
 
-        log.debug("Creating HikariDataSource '{}' → {}", definition.name(), definition.url());
+        // 驱动类名（由 DataSourceDefinition 自动推导或用户显式指定）
+        if (definition.driverClassName() != null && !definition.driverClassName().isBlank()) {
+            config.setDriverClassName(definition.driverClassName());
+        }
+
+        // 连接池参数
+        config.setMinimumIdle(definition.minimumIdle());
+        config.setMaximumPoolSize(definition.maximumPoolSize());
+        config.setConnectionTimeout(definition.connectionTimeout());
+        config.setIdleTimeout(definition.idleTimeout());
+        config.setMaxLifetime(definition.maxLifetime());
+
+        // 连接池名称
+        config.setPoolName(definition.poolName());
+
+        // 校验 SQL
+        if (definition.connectionTestQuery() != null && !definition.connectionTestQuery().isBlank()) {
+            config.setConnectionTestQuery(definition.connectionTestQuery());
+        }
+
+        // ─── HikariCP 扩展参数 ───
+        if (definition.validationTimeout() > 0) {
+            config.setValidationTimeout(definition.validationTimeout());
+        }
+        if (definition.leakDetectionThreshold() > 0) {
+            config.setLeakDetectionThreshold(definition.leakDetectionThreshold());
+        }
+        config.setRegisterMbeans(definition.registerMbeans());
+
+        log.debug("Creating HikariDataSource '{}' [{}] → {}",
+                definition.name(),
+                definition.dbType() != null ? definition.dbType().typeName() : "auto",
+                definition.url());
+
         return new HikariDataSource(config);
     }
 }
-

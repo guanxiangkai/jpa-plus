@@ -4,7 +4,6 @@ import com.atomize.jpa.plus.datasource.event.DataSourceChangeEvent;
 import com.atomize.jpa.plus.datasource.registry.DynamicDataSourceRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 
 /**
@@ -12,16 +11,14 @@ import org.springframework.context.event.EventListener;
  *
  * <p>监听以下事件并触发数据源差异化刷新：</p>
  * <ul>
- *   <li>{@link ContextRefreshedEvent} —— Spring 上下文刷新（应用启动 / 热重载）</li>
  *   <li>{@link DataSourceChangeEvent} —— 自定义数据源变更事件（编程式 / 配置中心触发）</li>
  * </ul>
  *
  * <h3>触发刷新的方式</h3>
  * <ol>
- *   <li><b>自动触发</b> —— 应用启动时 {@link ContextRefreshedEvent} 自动触发</li>
  *   <li><b>编程式触发</b> —— 注入 {@link com.atomize.jpa.plus.datasource.refresh.DataSourceRefresher}
  *       调用 {@code refresh()} 或直接发布 {@link DataSourceChangeEvent}</li>
- *   <li><b>定时触发</b> —— 配置 {@code jpa-plus.datasource.dynamic.schedule.enabled=true}
+ *   <li><b>定时触发</b> —— 配置 {@code spring.datasource.dynamic.refresh.enabled=true}
  *       开启定时轮询</li>
  *   <li><b>配置中心</b> —— Nacos / Apollo 等配置变更回调中发布 {@link DataSourceChangeEvent}</li>
  * </ol>
@@ -37,14 +34,6 @@ import org.springframework.context.event.EventListener;
 public class DataSourceRefreshListener {
 
     private final DynamicDataSourceRegistry registry;
-
-    /**
-     * 应用上下文刷新时差异化重新加载数据源
-     */
-    @EventListener
-    public void onContextRefreshed(ContextRefreshedEvent event) {
-        registry.reload();
-    }
 
     /**
      * 收到数据源变更事件时重新加载数据源

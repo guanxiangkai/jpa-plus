@@ -17,10 +17,12 @@ import com.atomize.jpa.plus.orderby.interceptor.AutoOrderByInterceptor;
 import com.atomize.jpa.plus.query.compiler.DebugSqlCompiler;
 import com.atomize.jpa.plus.query.compiler.MySqlCompiler;
 import com.atomize.jpa.plus.query.compiler.SqlCompiler;
+import com.atomize.jpa.plus.query.context.FlushMode;
 import com.atomize.jpa.plus.query.context.FlushStrategy;
 import com.atomize.jpa.plus.query.context.QueryContext;
 import com.atomize.jpa.plus.query.executor.DefaultQueryExecutor;
 import com.atomize.jpa.plus.query.executor.QueryExecutor;
+import com.atomize.jpa.plus.query.pagination.CountStrategy;
 import com.atomize.jpa.plus.query.pagination.PaginationOptimizer;
 import com.atomize.jpa.plus.query.resolver.DefaultJpaRelationResolver;
 import com.atomize.jpa.plus.query.resolver.JpaRelationResolver;
@@ -29,16 +31,15 @@ import com.atomize.jpa.plus.sensitive.spi.SensitiveWordProvider;
 import com.atomize.jpa.plus.starter.repository.JpaPlusRepositoryFactoryBean;
 import com.atomize.jpa.plus.version.handler.VersionFieldHandler;
 import jakarta.persistence.EntityManager;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import javax.sql.DataSource;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,13 +57,29 @@ import java.util.List;
  * </ul>
  * </p>
  *
- * <p><b>设计模式：</b>工厂模式 —— 通过 @Bean 方法创建并装配各组件</p>
+ * <h3>配置项（前缀 {@code jpa-plus.*}）</h3>
+ * <pre>{@code
+ * jpa-plus:
+ *   flush-mode: AUTO
+ *   debug:
+ *     enabled: false
+ *     print-params: true
+ *   pagination:
+ *     count-strategy: SIMPLE
+ *     force-subquery-for-join: true
+ *   encrypt:
+ *     key: "${ENCRYPT_KEY:JpaPlusEncKey128}"
+ *   dict:
+ *     jdbc:
+ *       enabled: false
+ *       table-name: jpa_plus_dict
+ *       auto-init-schema: true
+ * }</pre>
  *
  * @author guanxiangkai
  * @since 2026年03月25日 星期三
  */
 @AutoConfiguration
-@EnableConfigurationProperties(JpaPlusProperties.class)
 @EnableJpaRepositories(
         repositoryFactoryBeanClass = JpaPlusRepositoryFactoryBean.class
 )
@@ -72,10 +89,12 @@ public class JpaPlusAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SqlCompiler sqlCompiler(JpaPlusProperties properties) {
+    public SqlCompiler sqlCompiler(
+            @Value("${jpa-plus.debug.enabled:false}") boolean debugEnabled,
+            @Value("${jpa-plus.debug.print-params:true}") boolean printParams) {
         SqlCompiler compiler = new MySqlCompiler();
-        if (properties.getDebug().isEnabled()) {
-            compiler = new DebugSqlCompiler(compiler, properties.getDebug().isPrintParams());
+        if (debugEnabled) {
+            compiler = new DebugSqlCompiler(compiler, printParams);
         }
         return compiler;
     }
@@ -84,16 +103,18 @@ public class JpaPlusAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public PaginationOptimizer paginationOptimizer(JpaPlusProperties properties) {
-        return new PaginationOptimizer(properties.getPagination().getCountStrategy());
+    public PaginationOptimizer paginationOptimizer(
+            @Value("${jpa-plus.pagination.count-strategy:SIMPLE}") CountStrategy countStrategy) {
+        return new PaginationOptimizer(countStrategy);
     }
 
     // ─────────── Flush 策略 ───────────
 
     @Bean
     @ConditionalOnMissingBean
-    public FlushStrategy flushStrategy(JpaPlusProperties properties) {
-        return new FlushStrategy(properties.getFlushMode());
+    public FlushStrategy flushStrategy(
+            @Value("${jpa-plus.flush-mode:AUTO}") FlushMode flushMode) {
+        return new FlushStrategy(flushMode);
     }
 
     // ─────────── JPA 关联解析器 ───────────
@@ -108,8 +129,9 @@ public class JpaPlusAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public EncryptKeyProvider encryptKeyProvider(JpaPlusProperties properties) {
-        return properties.getEncrypt()::getKey;
+    public EncryptKeyProvider encryptKeyProvider(
+            @Value("${jpa-plus.encrypt.key:JpaPlusEncKey128}") String encryptKey) {
+        return () -> encryptKey;
     }
 
     @Bean
@@ -149,9 +171,11 @@ public class JpaPlusAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(DictProvider.class)
     @ConditionalOnProperty(prefix = "jpa-plus.dict.jdbc", name = "enabled", havingValue = "true")
-    public JdbcDictProvider jdbcDictProvider(DataSource dataSource, JpaPlusProperties properties) {
-        var dictConfig = properties.getDict().getJdbc();
-        return new JdbcDictProvider(dataSource, dictConfig.getTableName(), dictConfig.isAutoInitSchema());
+    public JdbcDictProvider jdbcDictProvider(
+            DataSource dataSource,
+            @Value("${jpa-plus.dict.jdbc.table-name:jpa_plus_dict}") String tableName,
+            @Value("${jpa-plus.dict.jdbc.auto-init-schema:true}") boolean autoInitSchema) {
+        return new JdbcDictProvider(dataSource, tableName, autoInitSchema);
     }
 
     @Bean

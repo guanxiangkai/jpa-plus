@@ -93,6 +93,8 @@ public class JdbcDataSourceProvider implements DataSourceProvider {
                 min_idle    INT          DEFAULT 5,
                 max_pool_size INT        DEFAULT 20,
                 connection_timeout BIGINT DEFAULT 30000,
+                idle_timeout BIGINT      DEFAULT 600000,
+                max_lifetime BIGINT      DEFAULT 1800000,
                 enabled     SMALLINT     DEFAULT 1,
                 create_time TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
                 update_time TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
@@ -112,6 +114,8 @@ public class JdbcDataSourceProvider implements DataSourceProvider {
                 min_idle    NUMBER        DEFAULT 5,
                 max_pool_size NUMBER      DEFAULT 20,
                 connection_timeout NUMBER DEFAULT 30000,
+                idle_timeout NUMBER      DEFAULT 600000,
+                max_lifetime NUMBER      DEFAULT 1800000,
                 enabled     NUMBER(1)     DEFAULT 1,
                 create_time TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
                 update_time TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
@@ -129,6 +133,8 @@ public class JdbcDataSourceProvider implements DataSourceProvider {
                 min_idle    INT          DEFAULT 5,
                 max_pool_size INT        DEFAULT 20,
                 connection_timeout BIGINT DEFAULT 30000,
+                idle_timeout BIGINT      DEFAULT 600000,
+                max_lifetime BIGINT      DEFAULT 1800000,
                 enabled     INT          DEFAULT 1,
                 create_time TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
                 update_time TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
@@ -185,9 +191,14 @@ public class JdbcDataSourceProvider implements DataSourceProvider {
                 rs.getString("url"),
                 rs.getString("username"),
                 rs.getString("password"),
+                null,                               // driverClassName — 由 dbType 自动推导
                 rs.getInt("min_idle"),
                 rs.getInt("max_pool_size"),
-                rs.getLong("connection_timeout")
+                rs.getLong("connection_timeout"),
+                rs.getLong("idle_timeout"),
+                rs.getLong("max_lifetime"),
+                null,                               // poolName — 自动生成
+                null                                // connectionTestQuery — 由 dbType 自动推导
         );
     }
 

@@ -5,7 +5,6 @@
 dependencies {
     api(project(":jpa-plus-core"))
     api(libs.jakarta.persistence.api)
-    compileOnly(libs.hibernate.core)
-    compileOnly(libs.spring.data.commons)
+    compileOnly(libs.bundles.spring.query)       // Hibernate Session / Spring Data Pageable
 }
 
