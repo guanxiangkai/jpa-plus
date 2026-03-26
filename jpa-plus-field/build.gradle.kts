@@ -3,6 +3,8 @@
  *
  * <p>聚合所有 FieldHandler 实现：
  * <ul>
+ *   <li>ID 自动生成（@AutoId → IdFieldHandler）</li>
+ *   <li>自动填充（@CreateTime/@UpdateTime/@CreateBy/@UpdateBy → AutoFillFieldHandler）</li>
  *   <li>乐观锁（@Version → VersionFieldHandler）</li>
  *   <li>字段加密（@Encrypt → EncryptFieldHandler）</li>
  *   <li>字段脱敏（@Desensitize → DesensitizeFieldHandler）</li>

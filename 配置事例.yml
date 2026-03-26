@@ -261,31 +261,6 @@ spring:
         # ---------- 统计信息（性能调优时临时开启）----------
         generate_statistics: false
 
-        # ---------- 默认 Schema（可选）----------
-        # default_schema: public
-
-# ------------------------------------------------------------------------------
-# 三、多数据源事务配置说明（非配置项，仅为指导）
-# ------------------------------------------------------------------------------
-# 1. 单数据源事务（默认）：
-#    使用 @Transactional 即可，默认绑定 primary 数据源的事务管理器。
-#
-# 2. 多数据源事务（跨库）：
-#    方案一：Seata AT 模式（推荐），配置 spring.datasource.dynamic.seata.enabled=true
-#    方案二：JTA（如 Atomikos），需额外引入依赖
-#    方案三：编程式事务，手动管理多个 PlatformTransactionManager
-#
-# 3. 事务管理器命名规则（框架自动注册）：
-#    主数据源 : transactionManager
-#    其他数据源 : {name}TransactionManager（如 slave_1TransactionManager）
-#
-# 示例：
-#   @Transactional("slave_1TransactionManager")
-#   public void readFromSlave() { ... }
-
-# ------------------------------------------------------------------------------
-# 四、日志配置
-# ------------------------------------------------------------------------------
 logging:
   level:
     com.atomize.jpa.plus: INFO

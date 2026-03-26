@@ -7,6 +7,8 @@ import java.lang.reflect.Field;
  *
  * <p>对实体字段进行增强处理的 SPI 扩展点。框架内置以下实现：
  * <ul>
+ *   <li>IdFieldHandler —— 主键自动生成（雪花/UUID/自定义）</li>
+ *   <li>AutoFillFieldHandler —— 自动填充（createTime/updateTime/createBy/updateBy）</li>
  *   <li>EncryptFieldHandler —— 字段加密/解密</li>
  *   <li>DictFieldHandler —— 字典标签回写</li>
  *   <li>DesensitizeFieldHandler —— 字段脱敏</li>

@@ -1,5 +1,7 @@
 package com.atomize.jpa.plus.starter;
 
+import com.atomize.jpa.plus.autofill.handler.AutoFillFieldHandler;
+import com.atomize.jpa.plus.autofill.spi.CurrentUserProvider;
 import com.atomize.jpa.plus.core.executor.DefaultJpaPlusExecutor;
 import com.atomize.jpa.plus.core.executor.JpaPlusExecutor;
 import com.atomize.jpa.plus.core.field.FieldEngine;
@@ -12,6 +14,10 @@ import com.atomize.jpa.plus.dict.provider.JdbcDictProvider;
 import com.atomize.jpa.plus.dict.spi.DictProvider;
 import com.atomize.jpa.plus.encrypt.handler.EncryptFieldHandler;
 import com.atomize.jpa.plus.encrypt.spi.EncryptKeyProvider;
+import com.atomize.jpa.plus.id.enums.IdType;
+import com.atomize.jpa.plus.id.generator.SnowflakeIdGenerator;
+import com.atomize.jpa.plus.id.handler.IdFieldHandler;
+import com.atomize.jpa.plus.id.spi.IdGenerator;
 import com.atomize.jpa.plus.logicdelete.handler.LogicDeleteFieldHandler;
 import com.atomize.jpa.plus.orderby.interceptor.AutoOrderByInterceptor;
 import com.atomize.jpa.plus.query.compiler.DebugSqlCompiler;
@@ -31,6 +37,7 @@ import com.atomize.jpa.plus.sensitive.spi.SensitiveWordProvider;
 import com.atomize.jpa.plus.starter.repository.JpaPlusRepositoryFactoryBean;
 import com.atomize.jpa.plus.version.handler.VersionFieldHandler;
 import jakarta.persistence.EntityManager;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -126,6 +133,36 @@ public class JpaPlusAutoConfiguration {
     }
 
     // ─────────── 字段处理器（各治理模块） ───────────
+
+    // ── ID 自动生成 ──
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SnowflakeIdGenerator snowflakeIdGenerator(
+            @Value("${jpa-plus.id-generator.snowflake.worker-id:1}") long workerId,
+            @Value("${jpa-plus.id-generator.snowflake.datacenter-id:1}") long datacenterId,
+            @Value("${jpa-plus.id-generator.snowflake.epoch:1700000000000}") long epoch) {
+        return new SnowflakeIdGenerator(workerId, datacenterId, epoch);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IdFieldHandler idFieldHandler(
+            @Value("${jpa-plus.id-generator.type:AUTO}") IdType defaultType,
+            SnowflakeIdGenerator snowflakeIdGenerator,
+            ObjectProvider<IdGenerator> customGenerator) {
+        return new IdFieldHandler(defaultType, snowflakeIdGenerator, customGenerator.getIfAvailable());
+    }
+
+    // ── 自动填充（createTime / updateTime / createBy / updateBy） ──
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AutoFillFieldHandler autoFillFieldHandler(ObjectProvider<CurrentUserProvider> userProvider) {
+        return new AutoFillFieldHandler(userProvider.getIfAvailable());
+    }
+
+    // ── 加密 ──
 
     @Bean
     @ConditionalOnMissingBean

@@ -26,20 +26,22 @@
 
 ## ✨ 功能特性
 
-| 功能模块      | 说明                                                           | 注解 / API                       |
-|-----------|--------------------------------------------------------------|--------------------------------|
-| **查询增强**  | Lambda DSL 条件构造、多表 Join、分页优化、多方言 SQL 编译                      | `QueryWrapper` / `JoinWrapper` |
-| **字段加密**  | 保存前自动加密，查询后自动解密（AES 等）                                       | `@Encrypt`                     |
-| **数据脱敏**  | 查询后自动掩码（手机号、邮箱、身份证、姓名、银行卡、地址等）                               | `@Desensitize`                 |
-| **敏感词检测** | 保存前检测敏感词，支持拒绝 / 替换策略                                         | `@SensitiveWord`               |
-| **字典回写**  | 查询后自动翻译字典值为标签                                                | `@Dict`                        |
-| **乐观锁**   | 保存时自动递增版本号                                                   | `@Version`                     |
-| **逻辑删除**  | 查询自动追加未删除条件，删除改写为 UPDATE                                     | `@LogicDelete`                 |
-| **多租户隔离** | 自动注入 `tenant_id` 条件实现数据隔离                                    | `TenantInterceptor`            |
-| **数据权限**  | 查询前自动注入行级权限条件                                                | `PermissionInterceptor`        |
-| **审计日志**  | 操作完成后发布 Spring 事件，支持异步审计                                     | `AuditEvent`                   |
-| **自动排序**  | 实体字段声明默认排序规则，查询时自动注入 ORDER BY                                | `@AutoOrderBy`                 |
-| **多数据源**  | 基于 `ScopedValue` 的线程安全数据源切换，YAML 声明式多数据源 + 自动检测 DatabaseType | `@DS` / `JpaPlusContext`       |
+| 功能模块      | 说明                                                           | 注解 / API                                                  |
+|-----------|--------------------------------------------------------------|-----------------------------------------------------------|
+| **查询增强**  | Lambda DSL 条件构造、多表 Join、分页优化、多方言 SQL 编译                      | `QueryWrapper` / `JoinWrapper`                            |
+| **ID 生成** | 保存前自动生成主键（雪花算法 / UUID / 自定义策略），YAML 全局配置 + 注解覆盖              | `@AutoId`                                                 |
+| **自动填充**  | 创建/更新时自动填充时间戳和操作人，支持 10 种时间类型                                | `@CreateTime` / `@UpdateTime` / `@CreateBy` / `@UpdateBy` |
+| **字段加密**  | 保存前自动加密，查询后自动解密（AES 等）                                       | `@Encrypt`                                                |
+| **数据脱敏**  | 查询后自动掩码（手机号、邮箱、身份证、姓名、银行卡、地址等）                               | `@Desensitize`                                            |
+| **敏感词检测** | 保存前检测敏感词，支持拒绝 / 替换策略                                         | `@SensitiveWord`                                          |
+| **字典回写**  | 查询后自动翻译字典值为标签                                                | `@Dict`                                                   |
+| **乐观锁**   | 保存时自动递增版本号                                                   | `@Version`                                                |
+| **逻辑删除**  | 查询自动追加未删除条件，删除改写为 UPDATE                                     | `@LogicDelete`                                            |
+| **多租户隔离** | 自动注入 `tenant_id` 条件实现数据隔离                                    | `TenantInterceptor`                                       |
+| **数据权限**  | 查询前自动注入行级权限条件                                                | `PermissionInterceptor`                                   |
+| **审计日志**  | 操作完成后发布 Spring 事件，支持异步审计                                     | `AuditEvent`                                              |
+| **自动排序**  | 实体字段声明默认排序规则，查询时自动注入 ORDER BY                                | `@AutoOrderBy`                                            |
+| **多数据源**  | 基于 `ScopedValue` 的线程安全数据源切换，YAML 声明式多数据源 + 自动检测 DatabaseType | `@DS` / `JpaPlusContext`                                  |
 
 ---
 
@@ -49,7 +51,8 @@
 jpa-plus
 ├── jpa-plus-core           # 核心引擎 — 拦截器链、字段引擎、SPI 加载器、统一异常、反射工具
 ├── jpa-plus-query          # 查询 DSL — Lambda Wrapper、AST 条件树、SQL 编译器（ScopedValue 参数命名）
-├── jpa-plus-field          # 字段治理 — @Encrypt 加密 / @Desensitize 脱敏 / @SensitiveWord 敏感词
+├── jpa-plus-field          # 字段治理 — @AutoId ID 生成 / @CreateTime @UpdateTime @CreateBy @UpdateBy 自动填充
+│                           #           @Encrypt 加密 / @Desensitize 脱敏 / @SensitiveWord 敏感词
 │                           #           @Dict 字典回写 / @Version 乐观锁
 ├── jpa-plus-interceptor    # 数据拦截 — @LogicDelete 逻辑删除 / @AutoOrderBy 自动排序
 │                           #           PermissionInterceptor 数据权限 / TenantInterceptor 多租户
@@ -125,6 +128,24 @@ dependencies {
 
 ## 🆕 2026.0.0 版本优化
 
+### ID 自动生成
+
+- **`@AutoId` 注解** — 标注在实体主键字段上，保存时 ID 为 null 则自动生成，已有值不覆盖
+- **四种策略** — `SNOWFLAKE`（雪花算法，默认）/ `UUID` / `AUTO`（跟随全局配置）/ `CUSTOM`（用户自定义）
+- **全局配置 + 注解覆盖** — YAML 配置 `jpa-plus.id-generator.type` 统一策略，`@AutoId(IdType.UUID)` 可逐字段覆盖
+- **雪花算法内置** — `SnowflakeIdGenerator` 开箱即用，支持 `worker-id`、`datacenter-id`、`epoch` 配置，时钟回拨容忍
+- **自定义 SPI** — 实现 `IdGenerator` 接口注册为 Bean，即可用于 `CUSTOM` 策略
+- **类型自动转换** — Snowflake 生成 Long，若字段为 String 自动转为字符串
+
+### 自动填充
+
+- **`@CreateTime` / `@UpdateTime`** — 创建时间仅首次填充（null 时），更新时间每次保存覆盖
+- **`@CreateBy` / `@UpdateBy`** — 创建人仅首次填充，更新人每次保存覆盖；操作人由用户实现 `CurrentUserProvider` SPI 提供
+- **10 种时间类型** — `LocalDateTime`、`LocalDate`、`LocalTime`、`OffsetDateTime`、`ZonedDateTime`、`Instant`、
+  `java.util.Date`、`java.sql.Timestamp`、`java.sql.Date`、`Long`（毫秒时间戳）
+- **与已有注解协同** — `@AutoId`（order=10）→ `@CreateTime/@UpdateTime/@CreateBy/@UpdateBy`（order=20）→ `@Version`
+  （order=400）→ `@LogicDelete`（order=500），创建实体时一行注解搞定全部默认值
+
 ### 动态数据源自动发现
 
 - **YAML 声明式多数据源** — `spring.datasource.dynamic.datasource.*` 直接在 YAML 中声明所有数据源（含 master），无需单独的
@@ -190,6 +211,8 @@ dependencies {
 - [ ] 事件总线异步模式（虚拟线程 + 可配置 `ErrorHandler`）
 - [ ] 敏感词模块内置 DFA 引擎实现
 - [x] ~~自动排序 `@AutoOrderBy` 注解支持~~
+- [x] ~~`@AutoId` 主键自动生成（雪花算法 / UUID / 自定义策略）~~
+- [x] ~~`@CreateTime` / `@UpdateTime` / `@CreateBy` / `@UpdateBy` 自动填充~~
 - [x] ~~`ScopedValue` 全面替代 `ThreadLocal`~~
 - [x] ~~通用反射实例化工具 `ReflectionUtils.instantiate()`~~
 - [x] ~~SPI 接口 `@FunctionalInterface` 标注~~
