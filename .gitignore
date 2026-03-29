@@ -180,8 +180,3 @@ buildNumber.properties
 *.rar
 *.tar
 *.zip
-
-/ai-ui/
-
-GUIDE.md
-gradle.properties

@@ -6,10 +6,10 @@
 [versions]
 
 # ─────────────────────────── Spring 体系 ───────────────────────────
-spring-boot = "4.1.0-M4"          # Spring Boot 4.x（适配 JDK 21+、虚拟线程、WebFlux 响应式）
+spring-boot = "4.0.5"          # Spring Boot 4.x（适配 JDK 21+、虚拟线程、WebFlux 响应式）
 
 # ─────────────────────────── 测试 ────────────────────────────────
-junit = "6.1.0-M1"                # JUnit 6
+junit = "6.0.3"                # JUnit 6
 
 # ─────────────────────────── Gradle 插件 ─────────────────────────
 lombok-plugin = "9.2.0"           # Lombok Gradle 插件
