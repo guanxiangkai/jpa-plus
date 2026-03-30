@@ -6,6 +6,8 @@
 
 pluginManagement {
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -14,6 +16,8 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/spring") }
         google()
         mavenCentral()
     }
@@ -48,5 +52,4 @@ fun File.registerAsSubproject() {
         projectDir = this@registerAsSubproject
         buildFileName = buildFile?.name ?: "${name}$buildFileExtension"
     }
-    println("已注册子项目: $projectName 位于 $path，构建文件: ${buildFile?.name}")
 }
