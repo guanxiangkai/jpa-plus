@@ -1,4 +1,0 @@
-# jpa-plus-query built-in SqlCompiler implementations
-com.atomize.jpa.plus.query.compiler.MySqlCompiler
-com.atomize.jpa.plus.query.compiler.PgSqlCompiler
-

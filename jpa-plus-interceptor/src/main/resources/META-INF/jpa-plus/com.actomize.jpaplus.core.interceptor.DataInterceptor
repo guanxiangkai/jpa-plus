@@ -1,0 +1,6 @@
+# jpa-plus-interceptor DataInterceptor 实现（合并模块）
+com.actomize.jpa.plus.logicdelete.interceptor.LogicDeleteInterceptor
+com.actomize.jpa.plus.orderby.interceptor.AutoOrderByInterceptor
+com.actomize.jpa.plus.permission.interceptor.PermissionInterceptor
+com.actomize.jpa.plus.tenant.interceptor.TenantInterceptor
+

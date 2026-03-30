@@ -110,17 +110,17 @@ repositories {
 // build.gradle.kts
 dependencies {
     // 方式一：引入 Starter（推荐，包含所有模块 + 自动装配）
-    implementation("com.atomize:jpa-plus-starter:2026.0.0")
+    implementation("com.actomize:jpa-plus-starter:2026.0.0")
 
     // 方式二：按需引入（仅引入需要的模块）
-    implementation("com.atomize:jpa-plus-core:2026.0.0")
-    implementation("com.atomize:jpa-plus-query:2026.0.0")
-    implementation("com.atomize:jpa-plus-field:2026.0.0")        // 字段治理（加密/脱敏/字典/敏感词/乐观锁）
-    implementation("com.atomize:jpa-plus-interceptor:2026.0.0")  // 数据拦截（逻辑删除/排序/权限/租户）
+    implementation("com.actomize:jpa-plus-core:2026.0.0")
+    implementation("com.actomize:jpa-plus-query:2026.0.0")
+    implementation("com.actomize:jpa-plus-field:2026.0.0")        // 字段治理（加密/脱敏/字典/敏感词/乐观锁）
+    implementation("com.actomize:jpa-plus-interceptor:2026.0.0")  // 数据拦截（逻辑删除/排序/权限/租户）
     // ... 其他模块按需添加
 
     // 方式三：全量引入（不含 Spring Boot 自动装配）
-    implementation("com.atomize:jpa-plus-all:2026.0.0")
+    implementation("com.actomize:jpa-plus-all:2026.0.0")
 }
 ```
 
@@ -196,7 +196,7 @@ dependencies {
 
 | 属性       | 值             |
 |----------|---------------|
-| Group    | `com.atomize` |
+| Group    | `com.actomize` |
 | Version  | `2026.0.0`    |
 | JDK      | `25`          |
 | Encoding | `UTF-8`       |
@@ -227,7 +227,7 @@ dependencies {
 本项目基于 [Apache License 2.0](LICENSE.txt) 开源协议发布。
 
 ```
-Copyright 2026 atomize
+Copyright 2026 actomize
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

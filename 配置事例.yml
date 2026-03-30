@@ -286,13 +286,13 @@ spring:
 
 logging:
   level:
-    com.atomize.jpa.plus: INFO
+    com.actomize.jpa.plus: INFO
     # 调试时按需开启：
-    # com.atomize.jpa.plus.datasource: DEBUG    # 数据源路由
-    # com.atomize.jpa.plus.query: DEBUG         # SQL 查询
-    # com.atomize.jpa.plus.encrypt: DEBUG       # 字段加解密
-    # com.atomize.jpa.plus.audit: DEBUG         # 审计字段填充
-    # com.atomize.jpa.plus.tenant: DEBUG        # 多租户过滤
+    # com.actomize.jpa.plus.datasource: DEBUG    # 数据源路由
+    # com.actomize.jpa.plus.query: DEBUG         # SQL 查询
+    # com.actomize.jpa.plus.encrypt: DEBUG       # 字段加解密
+    # com.actomize.jpa.plus.audit: DEBUG         # 审计字段填充
+    # com.actomize.jpa.plus.tenant: DEBUG        # 多租户过滤
     # com.zaxxer.hikari: DEBUG                  # HikariCP 连接池
     # org.hibernate.SQL: DEBUG                  # Hibernate SQL（等同于 show_sql）
     # org.hibernate.type.descriptor.sql: TRACE  # SQL 参数绑定值
