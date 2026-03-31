@@ -39,12 +39,14 @@ import com.actomize.jpa.plus.version.handler.VersionFieldHandler;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
@@ -87,10 +89,32 @@ import java.util.List;
  * @since 2026年03月25日 星期三
  */
 @AutoConfiguration
-@EnableJpaRepositories(
-        repositoryFactoryBeanClass = JpaPlusRepositoryFactoryBean.class
-)
 public class JpaPlusAutoConfiguration {
+
+    // ─────────── Repository 工厂替换 ───────────
+
+    /**
+     * 自动将 Spring Data JPA 默认的 {@link JpaRepositoryFactoryBean}
+     * 替换为 {@link JpaPlusRepositoryFactoryBean}，
+     * 使所有 Repository 自动获得 jpa-plus 增强能力（拦截器链、字段处理等）。
+     *
+     * <p>这样用户无需在应用层显式声明
+     * {@code @EnableJpaRepositories(repositoryFactoryBeanClass = ...)}，
+     * Spring Boot 默认的包扫描机制即可正常工作。
+     */
+    @Bean
+    static BeanDefinitionRegistryPostProcessor jpaPlusRepositoryFactoryReplacer() {
+        return (BeanDefinitionRegistry registry) -> {
+            String target = JpaRepositoryFactoryBean.class.getName();
+            String replacement = JpaPlusRepositoryFactoryBean.class.getName();
+            for (String name : registry.getBeanDefinitionNames()) {
+                var bd = registry.getBeanDefinition(name);
+                if (target.equals(bd.getBeanClassName())) {
+                    bd.setBeanClassName(replacement);
+                }
+            }
+        };
+    }
 
     // ─────────── SQL 编译器 ───────────
 
