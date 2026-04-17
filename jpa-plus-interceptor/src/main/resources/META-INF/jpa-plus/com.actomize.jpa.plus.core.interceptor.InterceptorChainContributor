@@ -1,0 +1,11 @@
+# SPI 描述符：拦截器链贡献者（InterceptorChainContributor）
+#
+# 第三方库可在此文件中注册自定义 InterceptorChainContributor 实现类，
+# 框架启动时自动加载并将 contribute() 返回的拦截器注入拦截器链。
+#
+# 格式：每行一个实现类全限定名（支持 # 注释和空行）
+#
+# 示例：
+# com.example.MyInterceptorChainContributor
+#
+

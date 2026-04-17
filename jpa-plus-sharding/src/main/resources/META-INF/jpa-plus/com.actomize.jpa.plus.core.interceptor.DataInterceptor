@@ -1,0 +1,4 @@
+# jpa-plus-sharding DataInterceptor 实现
+# ShardingInterceptor 在 BEFORE 阶段路由分片，order=50
+com.actomize.jpa.plus.sharding.interceptor.ShardingInterceptor
+

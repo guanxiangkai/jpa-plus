@@ -1,0 +1,7 @@
+# jpa-plus-field FieldHandler 实现（合并模块）
+com.actomize.jpa.plus.version.handler.VersionFieldHandler
+com.actomize.jpa.plus.encrypt.handler.EncryptFieldHandler
+com.actomize.jpa.plus.desensitize.handler.DesensitizeFieldHandler
+com.actomize.jpa.plus.dict.handler.DictFieldHandler
+com.actomize.jpa.plus.sensitive.handler.SensitiveWordHandler
+

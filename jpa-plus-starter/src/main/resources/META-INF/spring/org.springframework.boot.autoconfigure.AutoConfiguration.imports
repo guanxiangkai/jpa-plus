@@ -1,0 +1,8 @@
+com.actomize.jpa.plus.starter.JpaPlusAutoConfiguration
+com.actomize.jpa.plus.starter.JpaPlusDataSourceAutoConfiguration
+com.actomize.jpa.plus.sharding.autoconfigure.ShardingAutoConfiguration
+com.actomize.jpa.plus.starter.JpaPlusQueryAutoConfiguration
+com.actomize.jpa.plus.starter.JpaPlusFieldAutoConfiguration
+com.actomize.jpa.plus.starter.JpaPlusInterceptorAutoConfiguration
+com.actomize.jpa.plus.starter.JpaPlusAuditAutoConfiguration
+com.actomize.jpa.plus.starter.JpaPlusCoreAutoConfiguration
