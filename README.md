@@ -5,7 +5,7 @@
 ![JDK 25](https://img.shields.io/badge/JDK-25-blue)
 ![Spring Boot 4.0.5](https://img.shields.io/badge/Spring%20Boot-4.0.5-green)
 ![License Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-orange)
-![Version 2026.21.0](https://img.shields.io/badge/Version-2026.21.0-brightgreen)
+![Version 1.0.1](https://img.shields.io/badge/Version-1.0.1-brightgreen)
 
 ---
 
@@ -108,7 +108,7 @@ jpa-plus-starter      Spring Boot 自动装配入口（含审计、拦截器、�
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.actomize:jpa-plus-starter:2026.21.0")
+  implementation("com.actomize:jpa-plus-starter:1.0.1")
 }
 ```
 
@@ -117,13 +117,13 @@ dependencies {
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.actomize:jpa-plus-core:2026.21.0")
-    implementation("com.actomize:jpa-plus-query:2026.21.0")
-    implementation("com.actomize:jpa-plus-field:2026.21.0")
-    implementation("com.actomize:jpa-plus-interceptor:2026.21.0")
-    implementation("com.actomize:jpa-plus-audit:2026.21.0")
-    implementation("com.actomize:jpa-plus-datasource:2026.21.0")
-    implementation("com.actomize:jpa-plus-sharding:2026.21.0")
+  implementation("com.actomize:jpa-plus-core:1.0.1")
+  implementation("com.actomize:jpa-plus-query:1.0.1")
+  implementation("com.actomize:jpa-plus-field:1.0.1")
+  implementation("com.actomize:jpa-plus-interceptor:1.0.1")
+  implementation("com.actomize:jpa-plus-audit:1.0.1")
+  implementation("com.actomize:jpa-plus-datasource:1.0.1")
+  implementation("com.actomize:jpa-plus-sharding:1.0.1")
 }
 ```
 
@@ -142,7 +142,7 @@ dependencies {
 > 设计原则：**进入公开构造器 / 方法签名 / 继承树的类型保留在 `api`；只在内部实现使用的依赖下沉到 `implementation`
 ；真正可选增强保持 `compileOnly`。**
 
-> 自 **2026.21.0** 起，**类路径自动装配统一由 `jpa-plus-starter` 托管**。直接引入
+> 自 **1.0.1** 起，**类路径自动装配统一由 `jpa-plus-starter` 托管**。直接引入
 > `jpa-plus-sharding` 只获得分片 API / SPI；如果不使用 starter，又希望启用 Boot
 > 自动装配，请显式 `@Import(ShardingAutoConfiguration.class)`。
 
@@ -803,7 +803,7 @@ spring:
 | 属性       | 值              |
 |----------|----------------|
 | Group    | `com.actomize` |
-| Version  | `2026.21.0`    |
+| Version  | `1.0.1`        |
 | JDK      | `25`           |
 | Encoding | `UTF-8`        |
 
