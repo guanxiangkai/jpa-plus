@@ -145,11 +145,13 @@ public class JpaPlusFieldAutoConfiguration {
     @Bean
     @ConditionalOnBean(DictProvider.class)
     @ConditionalOnMissingBean
-    DictFieldHandler dictFieldHandler(ObjectProvider<CachedDictProvider> cachedProvider,
-                                      DictProvider rawProvider) {
-        // 优先使用带缓存的实现
-        DictProvider effective = cachedProvider.getIfAvailable();
-        return new DictFieldHandler(effective != null ? effective : rawProvider);
+    DictFieldHandler dictFieldHandler(List<DictProvider> dictProviders) {
+        // 优先使用带缓存的实现，避免多 DictProvider bean 时的注入歧义
+        DictProvider effective = dictProviders.stream()
+                .filter(p -> p instanceof CachedDictProvider)
+                .findFirst()
+                .orElse(dictProviders.get(0));
+        return new DictFieldHandler(effective);
     }
 
     // ── 敏感词（houbb 引擎优先，含白名单） ──
