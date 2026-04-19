@@ -31,6 +31,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -133,6 +134,7 @@ public class JpaPlusFieldAutoConfiguration {
      * 若用户已自行实现缓存逻辑，可通过注册 {@code CachedDictProvider} Bean 跳过此装饰。</p>
      */
     @Bean
+    @Primary
     @ConditionalOnBean(DictProvider.class)
     @ConditionalOnMissingBean(CachedDictProvider.class)
     @ConditionalOnProperty(prefix = "jpa-plus.dict.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -145,12 +147,16 @@ public class JpaPlusFieldAutoConfiguration {
     @Bean
     @ConditionalOnBean(DictProvider.class)
     @ConditionalOnMissingBean
-    DictFieldHandler dictFieldHandler(List<DictProvider> dictProviders) {
-        // 优先使用带缓存的实现，避免多 DictProvider bean 时的注入歧义
-        DictProvider effective = dictProviders.stream()
-                .filter(p -> p instanceof CachedDictProvider)
-                .findFirst()
-                .orElse(dictProviders.get(0));
+    DictFieldHandler dictFieldHandler(
+            ObjectProvider<CachedDictProvider> cachedDictProvider,
+            ObjectProvider<DictProvider> dictProviders) {
+        DictProvider effective = cachedDictProvider.getIfAvailable();
+        if (effective == null) {
+            effective = dictProviders.orderedStream()
+                    .filter(provider -> !(provider instanceof CachedDictProvider))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("No DictProvider available for DictFieldHandler"));
+        }
         return new DictFieldHandler(effective);
     }
 

@@ -361,7 +361,7 @@ public class FieldEngine {
      * P1-1 fix: The read lock is acquired BEFORE dereferencing the AtomicReference.
      * This prevents the ABA race where Thread A captures Map_old before registerHandler()
      * atomically swaps to Map_new; if Map_old already contained a cached entry for entityClass,
-     * computeIfAbsent would return stale pairs without calling buildPairs().
+     * computeIfAbsent would return stale pairs without calling buildPairsUnderReadLock().
      * With the read lock held, registerHandler()'s write lock cannot complete until we release,
      * guaranteeing that the map reference and the cached entry are consistent.
      */
@@ -406,13 +406,6 @@ public class FieldEngine {
                     entityClass.getSimpleName(), beforeSave ? "beforeSave" : "afterQuery", pairs.size());
         }
         return List.copyOf(pairs);
-    }
-
-    /**
-     * @deprecated Use {@link #buildPairsUnderReadLock} — this overload is retained only for clarity
-     */
-    private List<HandlerFieldPair> buildPairs(Class<?> entityClass, boolean beforeSave) {
-        return buildPairsUnderReadLock(entityClass, beforeSave);
     }
 
     // ─── 内部值对象 ──────────────────────────────────────────────────────────

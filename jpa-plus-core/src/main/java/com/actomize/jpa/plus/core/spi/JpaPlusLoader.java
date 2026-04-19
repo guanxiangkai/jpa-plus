@@ -17,7 +17,7 @@ import java.util.*;
  *
  * <p>特性：
  * <ul>
- *   <li>线程安全：使用 {@link ConcurrentHashMap} 缓存已加载的实现列表</li>
+ *   <li>线程安全：使用同步包装的 {@link WeakHashMap} 缓存已加载的实现列表</li>
  *   <li>支持排序：实现 {@link Ordered} 接口的 SPI 实例按 {@link Ordered#order()} 升序排列</li>
  *   <li>生命周期管理：{@link #invalidateAll()} 可在应用关闭时清理全部缓存，防止 ClassLoader 泄漏</li>
  * </ul>
