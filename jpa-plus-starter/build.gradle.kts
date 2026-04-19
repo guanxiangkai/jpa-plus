@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.bundles.starter.spring.beans.internal) // ObjectProvider / BeanDefinitionRegistry 等装配细节
     annotationProcessor(platform(libs.spring.boot.dependencies))
     annotationProcessor(libs.bundles.starter.configuration.processor)
+    testImplementation("org.hibernate.validator:hibernate-validator")
 
     // ═══════════ 可选增强（compileOnly：不引入则零开销） ═══════════
     compileOnly(libs.bundles.starter.optional)              // Micrometer / datasource-proxy / Druid
